@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Accounts Intelligence</title>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
 <style>
   :root{--bg:#f4f6fb;--card:#fff;--ink:#1c2333;--muted:#6b7385;--brand:#1f5eff;--brand-d:#1747c4;--line:#e3e7f0;--ok:#12a150;--bad:#d93025}
   *{box-sizing:border-box}
@@ -51,7 +52,7 @@
   .bar select{width:auto}
   .ok{color:var(--ok);font-size:.9rem}
   .hint{font-size:.82rem;color:var(--muted);margin-top:10px}
-  .sum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px}
+  .sum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px}
   .sum small{display:block;color:var(--muted);font-size:.78rem;margin-bottom:2px}
   .sum b{font-size:1.02rem}
   .neg{color:var(--bad)}.pos{color:var(--ok)}
@@ -61,7 +62,35 @@
   .plus{display:flex;align-items:center;gap:8px;font-size:1rem}
   .plus i{font-style:normal;font-size:1.3rem;line-height:1}
   #expCrumbs button.link{font-size:.95rem}
-  @media(max-width:560px){.sum{grid-template-columns:1fr}}
+  @media(max-width:560px){.sum{grid-template-columns:repeat(2,1fr)}}
+  .stmt-wrap{overflow-x:auto}
+  .stmt{font-family:Arial,"Noto Sans Bengali",sans-serif;color:#000;background:#fff}
+  .stmt .t1{text-align:center;font-weight:700;font-size:15px}
+  .stmt .t2{text-align:center;font-weight:700;font-size:12px;text-decoration:underline}
+  .stmt .t3{text-align:center;font-weight:700;font-size:11px;text-decoration:underline;margin-bottom:6px}
+  .stmt .dt{text-align:right;margin-bottom:2px}
+  .stmt .dt span{display:inline-block;border:1px solid #000;padding:2px 12px;font-weight:700;font-size:11px}
+  .stmt table{width:100%;min-width:680px;table-layout:fixed;border-collapse:collapse}
+  .stmt td,.stmt th{border:1px solid #000;padding:1px 4px;font-size:11px;line-height:1.25;text-align:left;vertical-align:middle;word-wrap:break-word}
+  .stmt th{font-weight:700;text-align:center;background:#f2f2f2;color:#000}
+  .stmt td.n{text-align:right}
+  .stmt tr.topsum td{border:0;font-size:10px;font-style:italic;color:#444;text-align:right}
+  .stmt tr.tot td{font-weight:700;background:#f2f2f2}
+  .stmt tr.bal td{border:0;font-weight:700}
+  .stmt tr.bal td.r{text-align:right}
+  .stmt tr.bal td.n{border-top:1px solid #000;border-bottom:3px double #000}
+  #printArea{display:none}
+  @media print{
+    @page{size:A4 portrait;margin:10mm}
+    body{background:#fff}
+    header,main{display:none!important}
+    #printArea{display:block}
+    #printArea .stmt{break-after:page;page-break-after:always}
+    #printArea .stmt:last-child{break-after:auto;page-break-after:auto}
+    #printArea .stmt table{min-width:0}
+    #printArea .stmt td,#printArea .stmt th{font-size:8.5pt;padding:.5px 3px}
+    #printArea .stmt .t1{font-size:14pt}
+  }
   .hidden{display:none!important}
 </style>
 </head>
@@ -103,7 +132,7 @@
     <div class="menu">
       <button class="tile" id="goCash"><b>＋ ক্যাশ যোগ করুন</b><span>হেড অফিস থেকে আনা ক্যাশ ও মাসভিত্তিক রেকর্ড</span></button>
       <button class="tile" id="goExp"><b>− খরচ</b><span>সাল → মাস → দিন অনুযায়ী খরচের হিসাব ও অবশিষ্ট টাকা</span></button>
-      <button class="tile off" disabled><b>রিপোর্ট</b><span>শীঘ্রই আসছে</span></button>
+      <button class="tile" id="goRep"><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
       <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
   </section>
@@ -150,6 +179,15 @@
     <div id="expBody"></div>
   </section>
 
+  <!-- রিপোর্ট -->
+  <section class="hidden" id="repView">
+    <div class="bar" style="margin-bottom:14px">
+      <button class="link" data-back>← মেনুতে ফিরুন</button>
+    </div>
+    <div class="card" style="padding:14px 22px"><div id="repCrumbs"></div></div>
+    <div id="repBody"></div>
+  </section>
+
   <!-- ব্যাকআপ -->
   <section class="hidden" id="backupView">
     <div class="bar" style="margin-bottom:14px">
@@ -166,6 +204,8 @@
   </section>
 
 </main>
+<div id="printArea"></div>
+<datalist id="headList"></datalist>
 
 <script>
 (function(){
@@ -173,7 +213,7 @@
   const $ = id => document.getElementById(id);
   const K_USER = "ai_user", K_CASH = "ai_cash", K_EXP = "ai_expense", K_SESSION = "ai_session";
   const MONTHS = ["জানুয়ারি","ফেব্রুয়ারি","মার্চ","এপ্রিল","মে","জুন","জুলাই","আগস্ট","সেপ্টেম্বর","অক্টোবর","নভেম্বর","ডিসেম্বর"];
-  const VIEWS = ["setupView","loginView","menuView","cashView","expView","backupView"];
+  const VIEWS = ["setupView","loginView","menuView","cashView","expView","repView","backupView"];
 
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } };
   const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
@@ -237,6 +277,7 @@
   document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => show("menuView"));
   $("goCash").onclick = () => { openCash(); show("cashView"); };
   $("goExp").onclick = () => { openExp(); show("expView"); };
+  $("goRep").onclick = () => { openRep(); show("repView"); };
   $("goBackup").onclick = () => { $("bMsg").textContent = ""; show("backupView"); };
 
   // ---- ক্যাশ ----
@@ -318,12 +359,25 @@
   const expList = () => load(K_EXP, []);
   const sumCash = (y,m) => cashList().filter(c => c.date.startsWith(`${y}-${pad(m+1)}`)).reduce((a,c) => a + c.amount, 0);
   const sumExp = prefix => expList().filter(e => e.date.startsWith(prefix)).reduce((a,e) => a + e.amount, 0);
+  const sumOf = l => l.reduce((a,x) => a + x.amount, 0);
+  const isOpen = c => /^\s*opening\s*balance\s*$/i.test(c.source || "");
+  function monthStats(y, m){
+    const pre = `${y}-${pad(m+1)}`, start = pre + "-01";
+    const cash = cashList(), exps = expList();
+    const before = sumOf(cash.filter(c => c.date < start)) - sumOf(exps.filter(e => e.date < start));
+    const inM = cash.filter(c => c.date.startsWith(pre));
+    const open = before + sumOf(inM.filter(isOpen));
+    const cashIn = sumOf(inM.filter(c => !isOpen(c)));
+    const exp = sumOf(exps.filter(e => e.date.startsWith(pre)));
+    return {open, cash:cashIn, exp, bal: open + cashIn - exp};
+  }
 
   function openExp(){ ex.y = ex.m = ex.d = null; ex.form = false; renderExp(); }
 
   function sumBox(y, m){
-    const c = sumCash(y,m), e = sumExp(`${y}-${pad(m+1)}`), r = c - e;
-    return `<div class="sum"><div><small>${MONTHS[m]} মাসের মোট ক্যাশ</small><b>${taka(c)}</b></div>` +
+    const st = monthStats(y,m), e = st.exp, r = st.bal;
+    return `<div class="sum"><div><small>আগের মাসের জের</small><b>${taka(st.open)}</b></div>` +
+           `<div><small>${MONTHS[m]} মাসের ক্যাশ</small><b>${taka(st.cash)}</b></div>` +
            `<div><small>মোট খরচ</small><b>${taka(e)}</b></div>` +
            `<div><small>অবশিষ্ট টাকা</small><b class="${r<0?"neg":"pos"}">${taka(r)}</b></div></div>`;
   }
@@ -361,8 +415,8 @@
     if (ex.m === null){
       box.innerHTML = `<div class="card"><h3 style="margin-top:0">${ex.y} — মাস বেছে নিন</h3><div class="months">` +
         MONTHS.map((n,i) => {
-          const cs = sumCash(ex.y,i), e = sumExp(`${ex.y}-${pad(i+1)}`), r = cs - e;
-          return `<button class="m" data-m="${i}"><strong>${n}</strong><small>ক্যাশ ${taka(cs)}</small><small>খরচ ${taka(e)}</small><small class="${r<0?"neg":"pos"}">অবশিষ্ট ${taka(r)}</small></button>`;
+          const st = monthStats(ex.y,i), cs = st.open + st.cash, e = st.exp, r = st.bal;
+          return `<button class="m" data-m="${i}"><strong>${n}</strong><small>ক্যাশ (জেরসহ) ${taka(cs)}</small><small>খরচ ${taka(e)}</small><small class="${r<0?"neg":"pos"}">অবশিষ্ট ${taka(r)}</small></button>`;
         }).join("") + `</div></div>`;
       box.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { ex.m = +b.dataset.m; renderExp(); });
       return;
@@ -388,13 +442,13 @@
       `<button class="plus" id="expPlus"><i>＋</i> খরচের হিসাব</button></div>`;
     if (ex.form){
       h += `<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:6px">` +
-        `<label>কী খরচ করা হয়েছে</label><input id="eDesc">` +
+        `<label>খরচের খাত (তালিকা থেকে বেছে নিন বা নতুন লিখুন)</label><input id="eDesc" list="headList" autocomplete="off">` +
         `<label>কত টাকা খরচ হয়েছে (৳)</label><input id="eAmt" type="number" min="0" step="0.01" inputmode="decimal">` +
         `<button class="wide" id="eSave">খরচ সংরক্ষণ করুন</button><div class="msg" id="eMsg"></div></div>`;
     }
     h += `</div><div class="card"><h3 style="margin-top:0">এই দিনের খরচ</h3>`;
     if (!rows.length) h += `<p class="hint">এই দিনে কোনো খরচ যোগ করা হয়নি।</p>`;
-    else h += `<table><thead><tr><th>খরচের বিবরণ</th><th class="amt">টাকা</th><th></th></tr></thead><tbody>` +
+    else h += `<table><thead><tr><th>খরচের খাত</th><th class="amt">টাকা</th><th></th></tr></thead><tbody>` +
       rows.map(e => `<tr><td>${esc(e.desc)}</td><td class="amt">${taka(e.amount)}</td><td><button class="danger" data-del="${e.id}">মুছুন</button></td></tr>`).join("") +
       `</tbody></table><div class="total"><span>এই দিনের মোট খরচ</span><span>${taka(dayTotal)}</span></div>`;
     box.innerHTML = h + `</div>`;
@@ -406,10 +460,11 @@
       renderExp();
     });
     if (ex.form){
+      fillHeads();
       $("eDesc").focus();
       const doSave = () => {
         const desc = $("eDesc").value.trim(), amt = parseFloat($("eAmt").value), m = $("eMsg");
-        if (!desc) return m.textContent = "কী খরচ করা হয়েছে লিখুন।";
+        if (!desc) return m.textContent = "খরচের খাত লিখুন বা বেছে নিন।";
         if (!(amt > 0)) return m.textContent = "সঠিক টাকার পরিমাণ দিন।";
         const l = expList();
         l.push({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, desc, amount: amt, by: sessionStorage.getItem(K_SESSION)});
@@ -419,6 +474,268 @@
       $("eSave").onclick = doSave;
       $("eAmt").addEventListener("keydown", e => { if (e.key === "Enter") doSave(); });
     }
+  }
+
+  // ---- রিপোর্ট ----
+  const MON_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const MON3 = MON_EN.map(n => n.slice(0,3));
+  const HEADS = ["Annual Leave Encashment-2026","Accessories Expanses","Bonus Eid Ul Adha-2026","Car Parking Bill","Cleaning Exp","Conveyance Bill","Earn Leave-2026","Eid Special Duty Allowance June-2026/Eid Ul Adha-2026","Electric Bill September-2026","Entertainment","Food Expanse Eid Ul Adha-2026","Fuel Expanse On Generator","Fuel Expanse On Vehicle(Dm-M-11-3090)","Gardening Expanse","General Expanse","House Rent September-2026","Iftar Expense","Internet Bill September-2026","Labor Bill For Earthing Boring","Labor Bill For Security Post Making","Labor Bill For Mecanical Work","License & Renewal","Loading & Unloading Exp.","Lunch Bill","Medical Expenses","Miscellaneous Exp.","Mobile / Telephone Bill Oct-2026","Night Bill Staff","Night Bill Worker","Off-Day Allowance","Yearly Deep tubewell Permission bill(2026-2027)","Printing & Stationery","Repair & Maintenance - Electric","Repair & Maintenance - General","Repair & Maintenance - Others","Repair & Maintenance - Plant & Machinery","Repair & Maintenance - Printing","Repair & Maintenance - Vehicle","Salary & Wages October-2026","Salary & Wages July-2026","Tiffin Bill -Worker","Tiffin Bill-Staff","Trade License & Renewal","Training & Motivation","Transport Expanses","Turn Out Bill Expanse","Vehicle Toll","Zakat March-2026"];
+  const r2 = x => Math.round(x * 100) / 100;
+  const clean = s => String(s).trim().replace(/\s+/g, " ");
+  const keyOf = s => clean(s).toLowerCase();
+  const fmt = n => n === 0 ? "-" : Number(n).toLocaleString("en-US", {maximumFractionDigits:2});
+  const lastDay = (y, m) => new Date(y, m + 1, 0).getDate();
+
+  function allHeads(){
+    const seen = new Set(HEADS.map(keyOf)), extra = [];
+    expList().forEach(e => { const k = keyOf(e.desc); if (!seen.has(k)){ seen.add(k); extra.push(clean(e.desc)); } });
+    return HEADS.concat(extra.sort());
+  }
+  function fillHeads(){
+    $("headList").innerHTML = allHeads().map(h => `<option value="${esc(h)}"></option>`).join("");
+  }
+
+  function monthHasData(y, m){
+    const pre = `${y}-${pad(m+1)}`;
+    return cashList().some(c => c.date.startsWith(pre)) || expList().some(e => e.date.startsWith(pre));
+  }
+
+  // একটি দিন পর্যন্ত স্টেটমেন্টের সব হিসাব
+  function buildStmt(y, m, d, kind){
+    const pre = `${y}-${pad(m+1)}`, day = `${pre}-${pad(d)}`, yy = String(y).slice(2);
+    const st = monthStats(y, m);
+    const cash = cashList().filter(c => c.date.startsWith(pre) && c.date <= day && !isOpen(c))
+                           .sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+    const left = [{label:"Opening Balance", amt:r2(st.open)}].concat(cash.map(c => {
+      const src = /^(হেড অফিস|ho|head office)$/i.test(clean(c.source || "")) ? "HO" : clean(c.source || "HO");
+      return {label:`Cash Received From ${src} (${c.date.slice(8,10)}.${c.date.slice(5,7)}.${yy})`, amt:c.amount};
+    }));
+    const exps = expList().filter(e => e.date.startsWith(pre) && e.date <= day);
+    const map = new Map();
+    HEADS.forEach(h => map.set(keyOf(h), {name:h, prev:0, day:0}));
+    const extra = new Map();
+    exps.forEach(e => {
+      const k = keyOf(e.desc);
+      let r = map.get(k) || extra.get(k);
+      if (!r){ r = {name:clean(e.desc), prev:0, day:0}; extra.set(k, r); }
+      if (e.date === day) r.day += e.amount; else r.prev += e.amount;
+    });
+    const customs = Array.from(extra.values()).sort((a,b) => a.name < b.name ? -1 : 1);
+    const heads = Array.from(map.values()).concat(customs).map(h => ({name:h.name, prev:r2(h.prev), day:r2(h.day), tot:r2(h.prev + h.day)}));
+    const totalIn = r2(left.reduce((a,x) => a + x.amt, 0));
+    const totPrev = r2(heads.reduce((a,x) => a + x.prev, 0));
+    const totDay = r2(heads.reduce((a,x) => a + x.day, 0));
+    const totMonth = r2(totPrev + totDay);
+    return {
+      kind, left, heads, totalIn, totPrev, totDay, totMonth, balance:r2(totalIn - totMonth),
+      monthLabel:`${MON_EN[m]}-${y}`,
+      dateLabel:`${pad(d)}-${MON3[m]}-${yy}`,
+      sheet: kind === "day" ? `${pad(d)}-${MON3[m]}-${yy}` : `${MON3[m]}-${y}`
+    };
+  }
+
+  function stmtHtml(s){
+    const n = Math.max(s.heads.length, s.left.length);
+    let rows = "";
+    for (let i = 0; i < n; i++){
+      const l = s.left[i], h = s.heads[i];
+      rows += `<tr><td>${l ? esc(l.label) : ""}</td><td class="n">${l ? fmt(l.amt) : ""}</td><td>${h ? esc(h.name) : ""}</td>` +
+              `<td class="n">${h ? fmt(h.prev) : ""}</td><td class="n">${h ? fmt(h.day) : ""}</td><td class="n">${h ? fmt(h.tot) : ""}</td></tr>`;
+    }
+    return `<div class="stmt"><div class="t1">Poly Corr Packaging</div><div class="t2">DAILY CASH &amp; EXPENSES STATEMENT</div>` +
+      `<div class="t3">For the month of ${s.monthLabel}</div><div class="dt"><span>Date: ${s.dateLabel}</span></div>` +
+      `<table><colgroup><col style="width:29%"><col style="width:10%"><col style="width:28%"><col style="width:12%"><col style="width:10%"><col style="width:12%"></colgroup>` +
+      `<thead><tr class="topsum"><td></td><td>${fmt(s.totalIn)}</td><td></td><td>${fmt(s.totPrev)}</td><td></td><td>${fmt(s.totMonth)}</td></tr>` +
+      `<tr><th>HEAD OFFICE RECEIVED</th><th>Amount</th><th>HEAD OF EXPENSES</th><th>Previous Monthly Amount</th><th>Amount (Daily)</th><th>Total Amount (Month)</th></tr></thead>` +
+      `<tbody>${rows}</tbody>` +
+      `<tfoot><tr class="tot"><td>Total</td><td class="n">${fmt(s.totalIn)}</td><td style="text-align:center">TOTAL</td><td class="n">${fmt(s.totPrev)}</td><td class="n">${fmt(s.totDay)}</td><td class="n">${fmt(s.totMonth)}</td></tr>` +
+      `<tr class="bal"><td></td><td></td><td class="r">Balance =</td><td></td><td></td><td class="n">${fmt(s.balance)}</td></tr></tfoot></table></div>`;
+  }
+
+  function printStmts(stmts){
+    const pa = $("printArea");
+    pa.innerHTML = stmts.map(stmtHtml).join("");
+    const done = () => { pa.innerHTML = ""; window.removeEventListener("afterprint", done); };
+    window.addEventListener("afterprint", done);
+    window.print();
+  }
+
+  function addSheet(wb, s){
+    const ws = wb.addWorksheet(s.sheet, {pageSetup:{paperSize:9, orientation:"portrait", fitToPage:true, fitToWidth:1, fitToHeight:1,
+      horizontalCentered:true, margins:{left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.2}}});
+    ws.columns = [{width:38},{width:13},{width:50},{width:18},{width:14},{width:18}];
+    const thin = {style:"thin"}, box = {top:thin, left:thin, bottom:thin, right:thin};
+    const font = o => Object.assign({name:"Arial", size:10}, o || {});
+    const nf = v => Number.isInteger(v) ? '#,##0;-#,##0;"-"' : '#,##0.00;-#,##0.00;"-"';
+    const put = (addr, value, o) => {
+      o = o || {};
+      const c = ws.getCell(addr);
+      c.value = value;
+      c.font = font(o.font);
+      if (o.align) c.alignment = o.align;
+      if (o.border) c.border = o.border;
+      if (o.fill) c.fill = {type:"pattern", pattern:"solid", fgColor:{argb:o.fill}};
+      if (o.nf) c.numFmt = o.nf;
+      return c;
+    };
+    const num = (addr, value, result, extra) => put(addr, value, Object.assign({border:box, align:{horizontal:"right"}, nf:nf(result)}, extra || {}));
+
+    ws.mergeCells("A1:F1"); put("A1", "Poly Corr Packaging", {font:{bold:true, size:15}, align:{horizontal:"center"}});
+    ws.mergeCells("A2:F2"); put("A2", "DAILY CASH & EXPENSES STATEMENT", {font:{bold:true, size:11, underline:true}, align:{horizontal:"center"}});
+    ws.mergeCells("A3:F3"); put("A3", "For the month of " + s.monthLabel, {font:{bold:true, size:10, underline:true}, align:{horizontal:"center"}});
+    ws.mergeCells("E4:F4");
+    put("E4", "Date: " + s.dateLabel, {font:{bold:true}, border:box, align:{horizontal:"center"}});
+    put("F4", null, {border:box});
+
+    const first = 7, n = Math.max(s.heads.length, s.left.length), last = first + n - 1, tot = last + 1, bal = tot + 1;
+
+    // হেডার
+    ["HEAD OFFICE RECEIVED","Amount","HEAD OF EXPENSES","Previous Monthly Amount","Amount (Daily)","Total Amount (Month)"].forEach((t, i) => {
+      put("ABCDEF"[i] + "6", t, {font:{bold:true}, border:box, fill:"FFF2F2F2", align:{horizontal:"center", vertical:"middle", wrapText:true}});
+    });
+    ws.getRow(6).height = 28;
+
+    // বডি
+    for (let i = 0; i < n; i++){
+      const r = first + i, l = s.left[i], h = s.heads[i];
+      put("A" + r, l ? l.label : null, {border:box});
+      if (l) num("B" + r, l.amt, l.amt); else put("B" + r, null, {border:box});
+      put("C" + r, h ? h.name : null, {border:box, align:{wrapText:true, vertical:"middle"}});
+      if (h){
+        num("D" + r, h.prev, h.prev);
+        num("E" + r, h.day, h.day);
+        num("F" + r, {formula:`D${r}+E${r}`, result:h.tot}, h.tot);
+      } else {
+        ["D","E","F"].forEach(c => put(c + r, null, {border:box}));
+      }
+    }
+
+    // মোট
+    const bold = {font:{bold:true}, fill:"FFF2F2F2"};
+    put("A" + tot, "Total", {font:{bold:true}, border:box, fill:"FFF2F2F2"});
+    num("B" + tot, {formula:`SUM(B${first}:B${last})`, result:s.totalIn}, s.totalIn, bold);
+    put("C" + tot, "TOTAL", {font:{bold:true}, border:box, fill:"FFF2F2F2", align:{horizontal:"center"}});
+    num("D" + tot, {formula:`SUM(D${first}:D${last})`, result:s.totPrev}, s.totPrev, bold);
+    num("E" + tot, {formula:`SUM(E${first}:E${last})`, result:s.totDay}, s.totDay, bold);
+    num("F" + tot, {formula:`SUM(F${first}:F${last})`, result:s.totMonth}, s.totMonth, bold);
+
+    // উপরের ছোট যোগফল (ছবির মতো)
+    const small = {font:{italic:true, size:8, color:{argb:"FF555555"}}, align:{horizontal:"right"}};
+    put("B5", {formula:`B${tot}`, result:s.totalIn}, Object.assign({nf:nf(s.totalIn)}, small));
+    put("D5", {formula:`D${tot}`, result:s.totPrev}, Object.assign({nf:nf(s.totPrev)}, small));
+    put("F5", {formula:`F${tot}`, result:s.totMonth}, Object.assign({nf:nf(s.totMonth)}, small));
+
+    // ব্যালেন্স
+    put("C" + bal, "Balance =", {font:{bold:true}, align:{horizontal:"right"}});
+    put("F" + bal, {formula:`B${tot}-F${tot}`, result:s.balance}, {font:{bold:true}, align:{horizontal:"right"}, nf:nf(s.balance),
+      border:{top:thin, bottom:{style:"double"}}});
+
+    ws.pageSetup.printArea = `A1:F${bal}`;
+  }
+
+  async function exportXlsx(stmts, name){
+    if (typeof ExcelJS === "undefined"){
+      alert("Excel তৈরির লাইব্রেরি লোড হয়নি। ইন্টারনেট সংযোগ দেখে পাতা রিফ্রেশ করে আবার চেষ্টা করুন।");
+      return;
+    }
+    try {
+      const wb = new ExcelJS.Workbook();
+      stmts.forEach(s => addSheet(wb, s));
+      const buf = await wb.xlsx.writeBuffer();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([buf], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+      a.download = name + ".xlsx";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    } catch(err){
+      alert("Excel ফাইল তৈরি করা যায়নি: " + err.message);
+    }
+  }
+
+  const rp = {y:null, m:null, d:null};
+  function openRep(){ rp.y = rp.m = rp.d = null; renderRep(); }
+
+  function stmtsFor(k){
+    if (k === "year"){
+      const out = [];
+      for (let m = 0; m < 12; m++) if (monthHasData(rp.y, m)) out.push(buildStmt(rp.y, m, lastDay(rp.y, m), "month"));
+      return out;
+    }
+    if (k === "month") return [buildStmt(rp.y, rp.m, lastDay(rp.y, rp.m), "month")];
+    return [buildStmt(rp.y, rp.m, rp.d, "day")];
+  }
+  function fileBase(k){
+    const b = "Poly-Corr-Statement-";
+    if (k === "year") return b + rp.y;
+    if (k === "month") return `${b}${rp.y}-${pad(rp.m+1)}`;
+    return `${b}${rp.y}-${pad(rp.m+1)}-${pad(rp.d)}`;
+  }
+  function doAct(act, k){
+    const stmts = stmtsFor(k);
+    if (!stmts.length) return alert("এই বছরে কোনো ক্যাশ বা খরচের এন্ট্রি নেই।");
+    if (act === "xlsx") exportXlsx(stmts, fileBase(k)); else printStmts(stmts);
+  }
+  function actionCard(title, k){
+    return `<div class="card"><div class="bar"><h3 style="margin:0">${title}</h3><div style="display:flex;gap:8px;flex-wrap:wrap">` +
+      `<button data-act="xlsx" data-k="${k}">Excel ডাউনলোড</button><button data-act="print" data-k="${k}">PDF / প্রিন্ট</button></div></div>` +
+      `<p class="hint">PDF পেতে "PDF / প্রিন্ট" চেপে প্রিন্টার হিসেবে "Save as PDF" বেছে নিন।</p></div>`;
+  }
+  function preview(s){
+    return `<div class="card"><h3 style="margin-top:0">প্রিভিউ</h3><div class="stmt-wrap">${stmtHtml(s)}</div></div>`;
+  }
+
+  function renderRep(){
+    const box = $("repBody"), cr = $("repCrumbs");
+    let c = `<button class="link" data-go="year">সাল</button>`;
+    if (rp.y !== null) c += ` › <button class="link" data-go="month">${rp.y}</button>`;
+    if (rp.m !== null) c += ` › <button class="link" data-go="day">${MONTHS[rp.m]}</button>`;
+    if (rp.d !== null) c += ` › <b>${rp.d} ${MONTHS[rp.m]}</b>`;
+    cr.innerHTML = c;
+    cr.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
+      const l = b.dataset.go;
+      if (l === "year") rp.y = rp.m = rp.d = null;
+      else if (l === "month") rp.m = rp.d = null;
+      else rp.d = null;
+      renderRep();
+    });
+
+    if (rp.y === null){
+      const set = new Set(), cur = new Date().getFullYear();
+      cashList().forEach(x => set.add(+x.date.slice(0,4)));
+      expList().forEach(x => set.add(+x.date.slice(0,4)));
+      for (let y = cur - 2; y <= cur + 1; y++) set.add(y);
+      const years = Array.from(set).sort((a,b) => b - a);
+      box.innerHTML = `<div class="card"><h3 style="margin-top:0">সাল বেছে নিন</h3><div class="months">` +
+        years.map(y => `<button class="m" data-y="${y}"><strong>${y}</strong></button>`).join("") + `</div></div>`;
+      box.querySelectorAll("[data-y]").forEach(b => b.onclick = () => { rp.y = +b.dataset.y; renderRep(); });
+      return;
+    }
+
+    let h = "";
+    if (rp.m === null){
+      h = actionCard(`${rp.y} সালের পুরো বছরের রিপোর্ট`, "year") +
+        `<div class="card"><h3 style="margin-top:0">${rp.y} — মাস বেছে নিন</h3><div class="months">` +
+        MONTHS.map((n, i) => {
+          const st = monthStats(rp.y, i), has = monthHasData(rp.y, i);
+          return `<button class="m ${has ? "sel" : ""}" data-m="${i}"><strong>${n}</strong><small>খরচ ${taka(st.exp)}</small><small>অবশিষ্ট ${taka(st.bal)}</small></button>`;
+        }).join("") + `</div></div>`;
+    } else if (rp.d === null){
+      const n = lastDay(rp.y, rp.m), pre = `${rp.y}-${pad(rp.m+1)}-`;
+      const cl = cashList(), el = expList();
+      h = actionCard(`${MONTHS[rp.m]} ${rp.y} — পুরো মাসের রিপোর্ট`, "month") +
+        `<div class="card"><h3 style="margin-top:0">দিন বেছে নিন (শুধু একদিনের রিপোর্টের জন্য)</h3><div class="days">`;
+      for (let d = 1; d <= n; d++){
+        const p = pre + pad(d), has = cl.some(x => x.date === p) || el.some(x => x.date === p);
+        h += `<button class="m ${has ? "has" : ""}" data-d="${d}"><strong>${d}</strong></button>`;
+      }
+      h += `</div></div>` + preview(buildStmt(rp.y, rp.m, n, "month"));
+    } else {
+      h = actionCard(`${rp.d} ${MONTHS[rp.m]} ${rp.y} — দিনের রিপোর্ট`, "day") + preview(buildStmt(rp.y, rp.m, rp.d, "day"));
+    }
+    box.innerHTML = h;
+    box.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { rp.m = +b.dataset.m; rp.d = null; renderRep(); });
+    box.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { rp.d = +b.dataset.d; renderRep(); });
+    box.querySelectorAll("[data-act]").forEach(b => b.onclick = () => doAct(b.dataset.act, b.dataset.k));
   }
 
   // ---- ব্যাকআপ ----
