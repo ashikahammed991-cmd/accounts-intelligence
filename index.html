@@ -51,6 +51,17 @@
   .bar select{width:auto}
   .ok{color:var(--ok);font-size:.9rem}
   .hint{font-size:.82rem;color:var(--muted);margin-top:10px}
+  .sum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px}
+  .sum small{display:block;color:var(--muted);font-size:.78rem;margin-bottom:2px}
+  .sum b{font-size:1.02rem}
+  .neg{color:var(--bad)}.pos{color:var(--ok)}
+  .days{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin-top:6px}
+  .days .m{text-align:center;padding:10px 6px}
+  .days .m.has{background:#eef8f1;border-color:#bfe3cc}
+  .plus{display:flex;align-items:center;gap:8px;font-size:1rem}
+  .plus i{font-style:normal;font-size:1.3rem;line-height:1}
+  #expCrumbs button.link{font-size:.95rem}
+  @media(max-width:560px){.sum{grid-template-columns:1fr}}
   .hidden{display:none!important}
 </style>
 </head>
@@ -91,7 +102,7 @@
     <h2 style="margin-top:0">মেনু</h2>
     <div class="menu">
       <button class="tile" id="goCash"><b>＋ ক্যাশ যোগ করুন</b><span>হেড অফিস থেকে আনা ক্যাশ ও মাসভিত্তিক রেকর্ড</span></button>
-      <button class="tile off" disabled><b>খরচ</b><span>শীঘ্রই আসছে</span></button>
+      <button class="tile" id="goExp"><b>− খরচ</b><span>সাল → মাস → দিন অনুযায়ী খরচের হিসাব ও অবশিষ্ট টাকা</span></button>
       <button class="tile off" disabled><b>রিপোর্ট</b><span>শীঘ্রই আসছে</span></button>
       <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
@@ -130,6 +141,15 @@
     </div>
   </section>
 
+  <!-- খরচ -->
+  <section class="hidden" id="expView">
+    <div class="bar" style="margin-bottom:14px">
+      <button class="link" data-back>← মেনুতে ফিরুন</button>
+    </div>
+    <div class="card" style="padding:14px 22px"><div id="expCrumbs"></div></div>
+    <div id="expBody"></div>
+  </section>
+
   <!-- ব্যাকআপ -->
   <section class="hidden" id="backupView">
     <div class="bar" style="margin-bottom:14px">
@@ -151,9 +171,9 @@
 (function(){
   "use strict";
   const $ = id => document.getElementById(id);
-  const K_USER = "ai_user", K_CASH = "ai_cash", K_SESSION = "ai_session";
+  const K_USER = "ai_user", K_CASH = "ai_cash", K_EXP = "ai_expense", K_SESSION = "ai_session";
   const MONTHS = ["জানুয়ারি","ফেব্রুয়ারি","মার্চ","এপ্রিল","মে","জুন","জুলাই","আগস্ট","সেপ্টেম্বর","অক্টোবর","নভেম্বর","ডিসেম্বর"];
-  const VIEWS = ["setupView","loginView","menuView","cashView","backupView"];
+  const VIEWS = ["setupView","loginView","menuView","cashView","expView","backupView"];
 
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } };
   const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
@@ -216,6 +236,7 @@
   // ---- নেভিগেশন ----
   document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => show("menuView"));
   $("goCash").onclick = () => { openCash(); show("cashView"); };
+  $("goExp").onclick = () => { openExp(); show("expView"); };
   $("goBackup").onclick = () => { $("bMsg").textContent = ""; show("backupView"); };
 
   // ---- ক্যাশ ----
@@ -291,9 +312,118 @@
     setTimeout(() => { if (m.className === "ok") m.textContent = ""; }, 2500);
   };
 
+  // ---- খরচ ----
+  const ex = {y:null, m:null, d:null, form:false};
+  const pad = n => String(n).padStart(2,"0");
+  const expList = () => load(K_EXP, []);
+  const sumCash = (y,m) => cashList().filter(c => c.date.startsWith(`${y}-${pad(m+1)}`)).reduce((a,c) => a + c.amount, 0);
+  const sumExp = prefix => expList().filter(e => e.date.startsWith(prefix)).reduce((a,e) => a + e.amount, 0);
+
+  function openExp(){ ex.y = ex.m = ex.d = null; ex.form = false; renderExp(); }
+
+  function sumBox(y, m){
+    const c = sumCash(y,m), e = sumExp(`${y}-${pad(m+1)}`), r = c - e;
+    return `<div class="sum"><div><small>${MONTHS[m]} মাসের মোট ক্যাশ</small><b>${taka(c)}</b></div>` +
+           `<div><small>মোট খরচ</small><b>${taka(e)}</b></div>` +
+           `<div><small>অবশিষ্ট টাকা</small><b class="${r<0?"neg":"pos"}">${taka(r)}</b></div></div>`;
+  }
+
+  function renderExp(){
+    const box = $("expBody"), cr = $("expCrumbs");
+
+    let c = `<button class="link" data-go="year">সাল</button>`;
+    if (ex.y !== null) c += ` › <button class="link" data-go="month">${ex.y}</button>`;
+    if (ex.m !== null) c += ` › <button class="link" data-go="day">${MONTHS[ex.m]}</button>`;
+    if (ex.d !== null) c += ` › <b>${ex.d} ${MONTHS[ex.m]}</b>`;
+    cr.innerHTML = c;
+    cr.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
+      const l = b.dataset.go; ex.form = false;
+      if (l === "year") ex.y = ex.m = ex.d = null;
+      else if (l === "month") ex.m = ex.d = null;
+      else ex.d = null;
+      renderExp();
+    });
+
+    if (ex.y === null){
+      const set = new Set();
+      cashList().forEach(x => set.add(+x.date.slice(0,4)));
+      expList().forEach(x => set.add(+x.date.slice(0,4)));
+      const cur = new Date().getFullYear();
+      for (let y = cur - 2; y <= cur + 1; y++) set.add(y);
+      const years = Array.from(set).sort((a,b) => b - a);
+      box.innerHTML = `<div class="card"><h3 style="margin-top:0">সাল বেছে নিন</h3><div class="months">` +
+        years.map(y => `<button class="m" data-y="${y}"><strong>${y}</strong><small>মোট খরচ ${taka(sumExp(String(y)))}</small></button>`).join("") +
+        `</div></div>`;
+      box.querySelectorAll("[data-y]").forEach(b => b.onclick = () => { ex.y = +b.dataset.y; renderExp(); });
+      return;
+    }
+
+    if (ex.m === null){
+      box.innerHTML = `<div class="card"><h3 style="margin-top:0">${ex.y} — মাস বেছে নিন</h3><div class="months">` +
+        MONTHS.map((n,i) => {
+          const cs = sumCash(ex.y,i), e = sumExp(`${ex.y}-${pad(i+1)}`), r = cs - e;
+          return `<button class="m" data-m="${i}"><strong>${n}</strong><small>ক্যাশ ${taka(cs)}</small><small>খরচ ${taka(e)}</small><small class="${r<0?"neg":"pos"}">অবশিষ্ট ${taka(r)}</small></button>`;
+        }).join("") + `</div></div>`;
+      box.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { ex.m = +b.dataset.m; renderExp(); });
+      return;
+    }
+
+    if (ex.d === null){
+      const n = new Date(ex.y, ex.m + 1, 0).getDate(), list = expList();
+      let h = sumBox(ex.y, ex.m) + `<div class="card"><h3 style="margin-top:0">${MONTHS[ex.m]} ${ex.y} — দিন বেছে নিন</h3><div class="days">`;
+      for (let d = 1; d <= n; d++){
+        const p = `${ex.y}-${pad(ex.m+1)}-${pad(d)}`;
+        const t = list.filter(e => e.date === p).reduce((a,e) => a + e.amount, 0);
+        h += `<button class="m ${t>0?"has":""}" data-d="${d}"><strong>${d}</strong><small>${t>0 ? taka(t) : "—"}</small></button>`;
+      }
+      box.innerHTML = h + `</div></div>`;
+      box.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { ex.d = +b.dataset.d; ex.form = false; renderExp(); });
+      return;
+    }
+
+    const date = `${ex.y}-${pad(ex.m+1)}-${pad(ex.d)}`;
+    const rows = expList().filter(e => e.date === date);
+    const dayTotal = rows.reduce((a,e) => a + e.amount, 0);
+    let h = sumBox(ex.y, ex.m) + `<div class="card"><div class="bar"><h3 style="margin:0">${ex.d} ${MONTHS[ex.m]} ${ex.y}</h3>` +
+      `<button class="plus" id="expPlus"><i>＋</i> খরচের হিসাব</button></div>`;
+    if (ex.form){
+      h += `<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:6px">` +
+        `<label>কী খরচ করা হয়েছে</label><input id="eDesc">` +
+        `<label>কত টাকা খরচ হয়েছে (৳)</label><input id="eAmt" type="number" min="0" step="0.01" inputmode="decimal">` +
+        `<button class="wide" id="eSave">খরচ সংরক্ষণ করুন</button><div class="msg" id="eMsg"></div></div>`;
+    }
+    h += `</div><div class="card"><h3 style="margin-top:0">এই দিনের খরচ</h3>`;
+    if (!rows.length) h += `<p class="hint">এই দিনে কোনো খরচ যোগ করা হয়নি।</p>`;
+    else h += `<table><thead><tr><th>খরচের বিবরণ</th><th class="amt">টাকা</th><th></th></tr></thead><tbody>` +
+      rows.map(e => `<tr><td>${esc(e.desc)}</td><td class="amt">${taka(e.amount)}</td><td><button class="danger" data-del="${e.id}">মুছুন</button></td></tr>`).join("") +
+      `</tbody></table><div class="total"><span>এই দিনের মোট খরচ</span><span>${taka(dayTotal)}</span></div>`;
+    box.innerHTML = h + `</div>`;
+
+    $("expPlus").onclick = () => { ex.form = !ex.form; renderExp(); };
+    box.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+      if (!confirm("এই খরচটি মুছে ফেলবেন?")) return;
+      save(K_EXP, expList().filter(e => e.id !== b.dataset.del));
+      renderExp();
+    });
+    if (ex.form){
+      $("eDesc").focus();
+      const doSave = () => {
+        const desc = $("eDesc").value.trim(), amt = parseFloat($("eAmt").value), m = $("eMsg");
+        if (!desc) return m.textContent = "কী খরচ করা হয়েছে লিখুন।";
+        if (!(amt > 0)) return m.textContent = "সঠিক টাকার পরিমাণ দিন।";
+        const l = expList();
+        l.push({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, desc, amount: amt, by: sessionStorage.getItem(K_SESSION)});
+        save(K_EXP, l);
+        renderExp();
+      };
+      $("eSave").onclick = doSave;
+      $("eAmt").addEventListener("keydown", e => { if (e.key === "Enter") doSave(); });
+    }
+  }
+
   // ---- ব্যাকআপ ----
   $("exportBtn").onclick = () => {
-    const blob = new Blob([JSON.stringify({app:"Accounts Intelligence", exported:new Date().toISOString(), cash:cashList()}, null, 2)], {type:"application/json"});
+    const blob = new Blob([JSON.stringify({app:"Accounts Intelligence", exported:new Date().toISOString(), cash:cashList(), expenses:expList()}, null, 2)], {type:"application/json"});
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "accounts-intelligence-backup-" + new Date().toISOString().slice(0,10) + ".json";
@@ -308,6 +438,7 @@
         if (!Array.isArray(d.cash)) throw 0;
         if (!confirm("বর্তমান ক্যাশ ডেটা মুছে ব্যাকআপের ডেটা বসানো হবে। চালিয়ে যাবেন?")) return;
         save(K_CASH, d.cash.filter(c => c && c.id && c.date && c.amount > 0));
+        if (Array.isArray(d.expenses)) save(K_EXP, d.expenses.filter(x => x && x.id && x.date && x.amount > 0));
         m.className = "ok"; m.textContent = "ডেটা পুনরুদ্ধার হয়েছে।";
       } catch(_){ m.className = "msg"; m.textContent = "ফাইলটি সঠিক ব্যাকআপ ফাইল নয়।"; }
       e.target.value = "";
