@@ -479,7 +479,7 @@
   // ---- রিপোর্ট ----
   const MON_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const MON3 = MON_EN.map(n => n.slice(0,3));
-  const HEADS = ["Annual Leave Encashment-2026","Accessories Expanses","Bonus Eid Ul Adha-2026","Car Parking Bill","Cleaning Exp","Conveyance Bill","Earn Leave-2026","Eid Special Duty Allowance June-2026/Eid Ul Adha-2026","Electric Bill September-2026","Entertainment","Food Expanse Eid Ul Adha-2026","Fuel Expanse On Generator","Fuel Expanse On Vehicle(Dm-M-11-3090)","Gardening Expanse","General Expanse","House Rent September-2026","Iftar Expense","Internet Bill September-2026","Labor Bill For Earthing Boring","Labor Bill For Security Post Making","Labor Bill For Mecanical Work","License & Renewal","Loading & Unloading Exp.","Lunch Bill","Medical Expenses","Miscellaneous Exp.","Mobile / Telephone Bill Oct-2026","Night Bill Staff","Night Bill Worker","Off-Day Allowance","Yearly Deep tubewell Permission bill(2026-2027)","Printing & Stationery","Repair & Maintenance - Electric","Repair & Maintenance - General","Repair & Maintenance - Others","Repair & Maintenance - Plant & Machinery","Repair & Maintenance - Printing","Repair & Maintenance - Vehicle","Salary & Wages October-2026","Salary & Wages July-2026","Tiffin Bill -Worker","Tiffin Bill-Staff","Trade License & Renewal","Training & Motivation","Transport Expanses","Turn Out Bill Expanse","Vehicle Toll","Zakat March-2026"];
+  const HEADS = [];
   const r2 = x => Math.round(x * 100) / 100;
   const clean = s => String(s).trim().replace(/\s+/g, " ");
   const keyOf = s => clean(s).toLowerCase();
@@ -506,7 +506,7 @@
     const st = monthStats(y, m);
     const cash = cashList().filter(c => c.date.startsWith(pre) && c.date <= day && !isOpen(c))
                            .sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
-    const left = [{label:"Opening Balance", amt:r2(st.open)}].concat(cash.map(c => {
+    const left = (r2(st.open) !== 0 ? [{label:"Opening Balance", amt:r2(st.open)}] : []).concat(cash.map(c => {
       const src = /^(হেড অফিস|ho|head office)$/i.test(clean(c.source || "")) ? "HO" : clean(c.source || "HO");
       return {label:`Cash Received From ${src} (${c.date.slice(8,10)}.${c.date.slice(5,7)}.${yy})`, amt:c.amount};
     }));
@@ -535,7 +535,7 @@
   }
 
   function stmtHtml(s){
-    const n = Math.max(s.heads.length, s.left.length);
+    const n = Math.max(s.heads.length, s.left.length, 22);
     let rows = "";
     for (let i = 0; i < n; i++){
       const l = s.left[i], h = s.heads[i];
@@ -587,7 +587,7 @@
     put("E4", "Date: " + s.dateLabel, {font:{bold:true}, border:box, align:{horizontal:"center"}});
     put("F4", null, {border:box});
 
-    const first = 7, n = Math.max(s.heads.length, s.left.length), last = first + n - 1, tot = last + 1, bal = tot + 1;
+    const first = 7, n = Math.max(s.heads.length, s.left.length, 22), last = first + n - 1, tot = last + 1, bal = tot + 1;
 
     // হেডার
     ["HEAD OFFICE RECEIVED","Amount","HEAD OF EXPENSES","Previous Monthly Amount","Amount (Daily)","Total Amount (Month)"].forEach((t, i) => {
