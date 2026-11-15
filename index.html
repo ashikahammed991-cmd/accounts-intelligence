@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accounts Intelligence</title>
+<style>
+  :root{--bg:#f4f6fb;--card:#fff;--ink:#1c2333;--muted:#6b7385;--brand:#1f5eff;--brand-d:#1747c4;--line:#e3e7f0;--ok:#12a150;--bad:#d93025}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Noto Sans Bengali","Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--brand);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+  header h1{margin:0;font-size:1.15rem;letter-spacing:.3px}
+  header .who{font-size:.9rem;display:flex;gap:12px;align-items:center}
+  main{max-width:900px;margin:24px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:18px}
+  .auth{max-width:380px;margin:60px auto}
+  .auth h2{margin-top:0}
+  label{display:block;font-size:.88rem;color:var(--muted);margin:12px 0 4px}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+  input:focus,select:focus,textarea:focus{outline:2px solid #b8cbff;border-color:var(--brand)}
+  button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:10px 18px;background:var(--brand);color:#fff}
+  button:hover{background:var(--brand-d)}
+  button.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6);padding:6px 12px}
+  button.ghost:hover{background:rgba(255,255,255,.15)}
+  button.link{background:none;color:var(--brand);padding:0}
+  button.danger{background:none;color:var(--bad);padding:4px 8px}
+  button.danger:hover{background:#fdecea}
+  button.wide{width:100%;margin-top:18px}
+  .msg{margin-top:12px;font-size:.9rem;color:var(--bad);min-height:1.2em}
+  .menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px;text-align:left;color:var(--ink);font-size:1rem}
+  .tile:hover{background:#eef3ff;border-color:var(--brand)}
+  .tile b{display:block;font-size:1.05rem;margin-bottom:4px}
+  .tile span{font-size:.85rem;color:var(--muted)}
+  .tile.off{opacity:.55;cursor:not-allowed}
+  .tile.off:hover{background:var(--card);border-color:var(--line)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:560px){.row{grid-template-columns:1fr}}
+  .months{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:14px 0}
+  .m{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:left;color:var(--ink)}
+  .m:hover{background:#eef3ff}
+  .m.sel{border-color:var(--brand);background:#eaf0ff}
+  .m small{display:block;color:var(--muted);font-size:.78rem}
+  .m strong{font-size:.95rem}
+  table{width:100%;border-collapse:collapse;font-size:.93rem}
+  th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--muted);font-weight:500;font-size:.82rem}
+  td.amt,th.amt{text-align:right}
+  .total{display:flex;justify-content:space-between;font-weight:600;padding:12px 8px 0}
+  .bar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .bar select{width:auto}
+  .ok{color:var(--ok);font-size:.9rem}
+  .hint{font-size:.82rem;color:var(--muted);margin-top:10px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Accounts Intelligence</h1>
+  <div class="who hidden" id="who">
+    <span id="whoName"></span>
+    <button class="ghost" id="logoutBtn">লগআউট</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- প্রথমবার: অ্যাকাউন্ট তৈরি -->
+  <section class="card auth hidden" id="setupView">
+    <h2>প্রথমবার সেটআপ</h2>
+    <p class="hint" style="margin-top:-6px">সফটওয়্যারে ঢোকার জন্য ইউজারনেম ও পাসওয়ার্ড তৈরি করুন।</p>
+    <label>ইউজারনেম</label><input id="suUser" autocomplete="username">
+    <label>পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)</label><input id="suPass" type="password" autocomplete="new-password">
+    <label>পাসওয়ার্ড আবার দিন</label><input id="suPass2" type="password" autocomplete="new-password">
+    <button class="wide" id="suBtn">অ্যাকাউন্ট তৈরি করুন</button>
+    <div class="msg" id="suMsg"></div>
+  </section>
+
+  <!-- লগইন -->
+  <section class="card auth hidden" id="loginView">
+    <h2>লগইন</h2>
+    <label>ইউজারনেম</label><input id="liUser" autocomplete="username">
+    <label>পাসওয়ার্ড</label><input id="liPass" type="password" autocomplete="current-password">
+    <button class="wide" id="liBtn">প্রবেশ করুন</button>
+    <div class="msg" id="liMsg"></div>
+  </section>
+
+  <!-- মেনু -->
+  <section class="hidden" id="menuView">
+    <h2 style="margin-top:0">মেনু</h2>
+    <div class="menu">
+      <button class="tile" id="goCash"><b>＋ ক্যাশ যোগ করুন</b><span>হেড অফিস থেকে আনা ক্যাশ ও মাসভিত্তিক রেকর্ড</span></button>
+      <button class="tile off" disabled><b>খরচ</b><span>শীঘ্রই আসছে</span></button>
+      <button class="tile off" disabled><b>রিপোর্ট</b><span>শীঘ্রই আসছে</span></button>
+      <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
+    </div>
+  </section>
+
+  <!-- ক্যাশ যোগ -->
+  <section class="hidden" id="cashView">
+    <div class="bar" style="margin-bottom:14px">
+      <button class="link" data-back>← মেনুতে ফিরুন</button>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">ক্যাশ যোগ করুন</h2>
+      <div class="row">
+        <div><label>তারিখ</label><input type="date" id="cDate"></div>
+        <div><label>টাকার পরিমাণ (৳)</label><input type="number" id="cAmt" min="0" step="0.01" inputmode="decimal"></div>
+      </div>
+      <label>উৎস</label><input id="cSrc" value="হেড অফিস">
+      <label>নোট / ভাউচার নম্বর (ঐচ্ছিক)</label><input id="cNote">
+      <button class="wide" id="cSave">সংরক্ষণ করুন</button>
+      <div class="msg" id="cMsg"></div>
+    </div>
+
+    <div class="card">
+      <div class="bar">
+        <h2 style="margin:0">মাসভিত্তিক রেকর্ড</h2>
+        <div>বছর: <select id="cYear"></select></div>
+      </div>
+      <div class="months" id="monthGrid"></div>
+      <div class="total" style="border-top:1px solid var(--line);margin-top:6px"><span id="yearLabel"></span><span id="yearTotal"></span></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0" id="monthTitle"></h3>
+      <div id="monthTable"></div>
+    </div>
+  </section>
+
+  <!-- ব্যাকআপ -->
+  <section class="hidden" id="backupView">
+    <div class="bar" style="margin-bottom:14px">
+      <button class="link" data-back>← মেনুতে ফিরুন</button>
+    </div>
+    <div class="card">
+      <h2 style="margin-top:0">ব্যাকআপ</h2>
+      <p>ডেটা এই ব্রাউজারে সংরক্ষিত থাকে। ব্রাউজারের ডেটা মুছে ফেললে বা অন্য কম্পিউটারে গেলে ডেটা পাওয়া যাবে না, তাই নিয়মিত ব্যাকআপ রাখুন।</p>
+      <button id="exportBtn">ব্যাকআপ ডাউনলোড করুন</button>
+      <label style="margin-top:20px">ব্যাকআপ ফাইল থেকে পুনরুদ্ধার</label>
+      <input type="file" id="importFile" accept="application/json">
+      <div class="msg" id="bMsg"></div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function(){
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const K_USER = "ai_user", K_CASH = "ai_cash", K_SESSION = "ai_session";
+  const MONTHS = ["জানুয়ারি","ফেব্রুয়ারি","মার্চ","এপ্রিল","মে","জুন","জুলাই","আগস্ট","সেপ্টেম্বর","অক্টোবর","নভেম্বর","ডিসেম্বর"];
+  const VIEWS = ["setupView","loginView","menuView","cashView","backupView"];
+
+  const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } };
+  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const taka = n => "৳ " + Number(n).toLocaleString("bn-BD", {minimumFractionDigits:0, maximumFractionDigits:2});
+
+  async function hash(pass, salt){
+    const data = new TextEncoder().encode(salt + ":" + pass);
+    const buf = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+  }
+  function randSalt(){
+    return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2,"0")).join("");
+  }
+
+  function show(id){
+    VIEWS.forEach(v => $(v).classList.toggle("hidden", v !== id));
+    const loggedIn = !!sessionStorage.getItem(K_SESSION);
+    $("who").classList.toggle("hidden", !loggedIn);
+    if (loggedIn) $("whoName").textContent = sessionStorage.getItem(K_SESSION);
+  }
+
+  function start(){
+    if (!load(K_USER, null)) return show("setupView");
+    if (sessionStorage.getItem(K_SESSION)) return show("menuView");
+    show("loginView");
+  }
+
+  // ---- সেটআপ ----
+  $("suBtn").onclick = async () => {
+    const u = $("suUser").value.trim(), p = $("suPass").value, p2 = $("suPass2").value;
+    const m = $("suMsg");
+    if (!u) return m.textContent = "ইউজারনেম দিন।";
+    if (p.length < 6) return m.textContent = "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।";
+    if (p !== p2) return m.textContent = "দুইবারের পাসওয়ার্ড মিলছে না।";
+    const salt = randSalt();
+    save(K_USER, {username:u, salt, hash: await hash(p, salt)});
+    sessionStorage.setItem(K_SESSION, u);
+    $("suPass").value = $("suPass2").value = ""; m.textContent = "";
+    show("menuView");
+  };
+
+  // ---- লগইন ----
+  async function doLogin(){
+    const rec = load(K_USER, null), m = $("liMsg");
+    const u = $("liUser").value.trim(), p = $("liPass").value;
+    if (!rec) return start();
+    if (u !== rec.username || await hash(p, rec.salt) !== rec.hash){
+      return m.textContent = "ইউজারনেম বা পাসওয়ার্ড ভুল।";
+    }
+    sessionStorage.setItem(K_SESSION, u);
+    $("liPass").value = ""; m.textContent = "";
+    show("menuView");
+  }
+  $("liBtn").onclick = doLogin;
+  ["liUser","liPass"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); }));
+
+  $("logoutBtn").onclick = () => { sessionStorage.removeItem(K_SESSION); $("liUser").value=""; show("loginView"); };
+
+  // ---- নেভিগেশন ----
+  document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => show("menuView"));
+  $("goCash").onclick = () => { openCash(); show("cashView"); };
+  $("goBackup").onclick = () => { $("bMsg").textContent = ""; show("backupView"); };
+
+  // ---- ক্যাশ ----
+  let selYear = new Date().getFullYear(), selMonth = new Date().getMonth();
+
+  function cashList(){ return load(K_CASH, []); }
+
+  function openCash(){
+    const now = new Date();
+    $("cDate").value = now.toISOString().slice(0,10);
+    $("cAmt").value = ""; $("cNote").value = ""; $("cMsg").textContent = "";
+    selYear = now.getFullYear(); selMonth = now.getMonth();
+    render();
+  }
+
+  function yearsAvailable(){
+    const set = new Set(cashList().map(c => +c.date.slice(0,4)));
+    const cur = new Date().getFullYear();
+    for (let y = cur - 2; y <= cur + 1; y++) set.add(y);
+    set.add(selYear);
+    return Array.from(set).sort((a,b) => b - a);
+  }
+
+  function render(){
+    const list = cashList();
+    $("cYear").innerHTML = yearsAvailable().map(y => `<option value="${y}" ${y===selYear?"selected":""}>${y}</option>`).join("");
+
+    const totals = Array(12).fill(0), counts = Array(12).fill(0);
+    list.forEach(c => {
+      if (+c.date.slice(0,4) === selYear){ const mi = +c.date.slice(5,7) - 1; totals[mi] += c.amount; counts[mi]++; }
+    });
+    $("monthGrid").innerHTML = MONTHS.map((name,i) =>
+      `<button class="m ${i===selMonth?"sel":""}" data-m="${i}"><strong>${name}</strong><small>${taka(totals[i])}</small><small>${counts[i]} টি এন্ট্রি</small></button>`
+    ).join("");
+    $("monthGrid").querySelectorAll(".m").forEach(b => b.onclick = () => { selMonth = +b.dataset.m; render(); });
+
+    $("yearLabel").textContent = `${selYear} সালের মোট ক্যাশ`;
+    $("yearTotal").textContent = taka(totals.reduce((a,b)=>a+b,0));
+
+    const mm = String(selMonth+1).padStart(2,"0");
+    const rows = list.filter(c => c.date.startsWith(`${selYear}-${mm}`)).sort((a,b) => a.date < b.date ? -1 : 1);
+    $("monthTitle").textContent = `${MONTHS[selMonth]} ${selYear}`;
+    if (!rows.length){
+      $("monthTable").innerHTML = `<p class="hint">এই মাসে কোনো ক্যাশ যোগ করা হয়নি।</p>`;
+    } else {
+      $("monthTable").innerHTML =
+        `<table><thead><tr><th>তারিখ</th><th>উৎস</th><th>নোট</th><th class="amt">পরিমাণ</th><th></th></tr></thead><tbody>` +
+        rows.map(c => `<tr><td>${esc(c.date.split("-").reverse().join("/"))}</td><td>${esc(c.source)}</td><td>${esc(c.note||"—")}</td><td class="amt">${taka(c.amount)}</td><td><button class="danger" data-del="${c.id}">মুছুন</button></td></tr>`).join("") +
+        `</tbody></table><div class="total"><span>${MONTHS[selMonth]} মাসের মোট</span><span>${taka(totals[selMonth])}</span></div>`;
+      $("monthTable").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+        if (!confirm("এই এন্ট্রিটি মুছে ফেলবেন?")) return;
+        save(K_CASH, cashList().filter(c => c.id !== b.dataset.del));
+        render();
+      });
+    }
+  }
+
+  $("cYear").onchange = e => { selYear = +e.target.value; render(); };
+
+  $("cSave").onclick = () => {
+    const date = $("cDate").value, amt = parseFloat($("cAmt").value);
+    const src = $("cSrc").value.trim() || "হেড অফিস", note = $("cNote").value.trim();
+    const m = $("cMsg"); m.className = "msg";
+    if (!date) return m.textContent = "তারিখ দিন।";
+    if (!(amt > 0)) return m.textContent = "সঠিক টাকার পরিমাণ দিন।";
+    const list = cashList();
+    list.push({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, amount: amt, source: src, note, by: sessionStorage.getItem(K_SESSION)});
+    save(K_CASH, list);
+    selYear = +date.slice(0,4); selMonth = +date.slice(5,7) - 1;
+    $("cAmt").value = ""; $("cNote").value = "";
+    render();
+    m.className = "ok"; m.textContent = "ক্যাশ যোগ হয়েছে।";
+    setTimeout(() => { if (m.className === "ok") m.textContent = ""; }, 2500);
+  };
+
+  // ---- ব্যাকআপ ----
+  $("exportBtn").onclick = () => {
+    const blob = new Blob([JSON.stringify({app:"Accounts Intelligence", exported:new Date().toISOString(), cash:cashList()}, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "accounts-intelligence-backup-" + new Date().toISOString().slice(0,10) + ".json";
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+  $("importFile").onchange = e => {
+    const f = e.target.files[0], m = $("bMsg"); if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = JSON.parse(r.result);
+        if (!Array.isArray(d.cash)) throw 0;
+        if (!confirm("বর্তমান ক্যাশ ডেটা মুছে ব্যাকআপের ডেটা বসানো হবে। চালিয়ে যাবেন?")) return;
+        save(K_CASH, d.cash.filter(c => c && c.id && c.date && c.amount > 0));
+        m.className = "ok"; m.textContent = "ডেটা পুনরুদ্ধার হয়েছে।";
+      } catch(_){ m.className = "msg"; m.textContent = "ফাইলটি সঠিক ব্যাকআপ ফাইল নয়।"; }
+      e.target.value = "";
+    };
+    r.readAsText(f);
+  };
+
+  start();
+})();
+</script>
+</body>
+</html>
