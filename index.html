@@ -535,7 +535,7 @@
   }
 
   function stmtHtml(s){
-    const n = Math.max(s.heads.length, s.left.length, 22);
+    const n = Math.max(s.heads.length, s.left.length, 1);
     let rows = "";
     for (let i = 0; i < n; i++){
       const l = s.left[i], h = s.heads[i];
@@ -587,7 +587,7 @@
     put("E4", "Date: " + s.dateLabel, {font:{bold:true}, border:box, align:{horizontal:"center"}});
     put("F4", null, {border:box});
 
-    const first = 7, n = Math.max(s.heads.length, s.left.length, 22), last = first + n - 1, tot = last + 1, bal = tot + 1;
+    const first = 7, n = Math.max(s.heads.length, s.left.length, 1), last = first + n - 1, tot = last + 1, bal = tot + 1;
 
     // হেডার
     ["HEAD OFFICE RECEIVED","Amount","HEAD OF EXPENSES","Previous Monthly Amount","Amount (Daily)","Total Amount (Month)"].forEach((t, i) => {
