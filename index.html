@@ -96,6 +96,8 @@
   button.lg{background:#fff;color:var(--ink);border:1px solid var(--line);padding:6px 14px}
   button.lg:hover{background:#eef3ff}
   button.lg.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .status{background:#fff8e1;border:1px solid #f0d58c;color:#7a5b00;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:.9rem}
+  .status.bad{background:#fdecea;border-color:#f3b8b3;color:var(--bad)}
   .hidden{display:none!important}
 </style>
 </head>
@@ -111,21 +113,14 @@
 
 <main>
 
-  <!-- প্রথমবার: অ্যাকাউন্ট তৈরি -->
-  <section class="card auth hidden" id="setupView">
-    <h2>প্রথমবার সেটআপ</h2>
-    <p class="hint" style="margin-top:-6px">সফটওয়্যারে ঢোকার জন্য ইউজারনেম ও পাসওয়ার্ড তৈরি করুন।</p>
-    <label>ইউজারনেম</label><input id="suUser" autocomplete="username">
-    <label>পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)</label><input id="suPass" type="password" autocomplete="new-password">
-    <label>পাসওয়ার্ড আবার দিন</label><input id="suPass2" type="password" autocomplete="new-password">
-    <button class="wide" id="suBtn">অ্যাকাউন্ট তৈরি করুন</button>
-    <div class="msg" id="suMsg"></div>
-  </section>
+  <section class="card auth" id="bootView"><p>লোড হচ্ছে…</p></section>
+
+  <div id="dataStatus" class="status hidden"></div>
 
   <!-- লগইন -->
   <section class="card auth hidden" id="loginView">
     <h2>লগইন</h2>
-    <label>ইউজারনেম</label><input id="liUser" autocomplete="username">
+    <label>ইমেইল</label><input id="liUser" type="email" autocomplete="username">
     <label>পাসওয়ার্ড</label><input id="liPass" type="password" autocomplete="current-password">
     <button class="wide" id="liBtn">প্রবেশ করুন</button>
     <div class="msg" id="liMsg"></div>
@@ -143,7 +138,7 @@
       <button class="tile" id="goRep"><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
       <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
-    <p class="hint" translate="no">Accounts Intelligence · Version 3 (16-Nov-2026)</p>
+    <p class="hint" translate="no">Accounts Intelligence · Version 4 · Online (16-Nov-2026)</p>
   </section>
 
   <!-- ক্যাশ যোগ -->
@@ -204,11 +199,18 @@
     </div>
     <div class="card">
       <h2 style="margin-top:0">ব্যাকআপ</h2>
-      <p>ডেটা এই ব্রাউজারে সংরক্ষিত থাকে। ব্রাউজারের ডেটা মুছে ফেললে বা অন্য কম্পিউটারে গেলে ডেটা পাওয়া যাবে না, তাই নিয়মিত ব্যাকআপ রাখুন।</p>
+      <p>ডেটা অনলাইনে জমা থাকে এবং সবাই একই ডেটা দেখে। তবুও মাঝে মাঝে ব্যাকআপ ডাউনলোড করে রাখুন।</p>
       <button id="exportBtn">ব্যাকআপ ডাউনলোড করুন</button>
       <label style="margin-top:20px">ব্যাকআপ ফাইল থেকে পুনরুদ্ধার</label>
       <input type="file" id="importFile" accept="application/json">
       <div class="msg" id="bMsg"></div>
+    </div>
+    <div class="card hidden" id="migCard">
+      <h3 style="margin-top:0">পুরনো ডেটা অনলাইনে তোলা</h3>
+      <p>আগের (অনলাইন ছাড়া) ভার্সনে এই ব্রাউজারে যে ডেটা জমেছিল তা এক ক্লিকে অনলাইনে তুলে নিন। একই বোতাম আবার চাপলেও ডেটা দ্বিগুণ হবে না।</p>
+      <p id="migInfo" class="hint"></p>
+      <button id="migBtn">এই ব্রাউজারের পুরনো ডেটা অনলাইনে তুলুন</button>
+      <div class="msg" id="migMsg"></div>
     </div>
   </section>
 
@@ -263,7 +265,22 @@
     [`Excel তৈরির লাইব্রেরি লোড হয়নি। ইন্টারনেট সংযোগ দেখে পাতা রিফ্রেশ করে আবার চেষ্টা করুন।`,`The Excel library failed to load. Check your internet connection, refresh the page and try again.`],
     [`Excel ফাইল তৈরি করা যায়নি:`,`Could not create the Excel file:`],
     [`বর্তমান ক্যাশ ডেটা মুছে ব্যাকআপের ডেটা বসানো হবে। চালিয়ে যাবেন?`,`The current data will be replaced with the backup data. Continue?`],
-    [`ডেটা পুনরুদ্ধার হয়েছে।`,`Data restored.`],[`ফাইলটি সঠিক ব্যাকআপ ফাইল নয়।`,`This is not a valid backup file.`]
+    [`ডেটা পুনরুদ্ধার হয়েছে।`,`Data restored.`],[`ফাইলটি সঠিক ব্যাকআপ ফাইল নয়।`,`This is not a valid backup file.`],
+    [`ইমেইল ও পাসওয়ার্ড দিন।`,`Enter your email and password.`],[`ইমেইল বা পাসওয়ার্ড ভুল।`,`Wrong email or password.`],[`ইমেইল`,`Email`],
+    [`অনেকবার ভুল চেষ্টা হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।`,`Too many failed attempts. Please try again later.`],
+    [`ইন্টারনেট সংযোগ নেই।`,`No internet connection.`],[`লগইন করা যায়নি।`,`Could not sign in.`],
+    [`অনলাইন সেবা চালু হয়নি। ইন্টারনেট সংযোগ দেখে পাতা রিফ্রেশ করুন।`,`The online service did not start. Check your internet connection and refresh the page.`],
+    [`লোড হচ্ছে…`,`Loading…`],[`ডেটা লোড হচ্ছে…`,`Loading data…`],
+    [`ডেটা পড়া যায়নি। ইন্টারনেট সংযোগ ও Firestore Rules দেখুন।`,`Could not read the data. Check your internet connection and the Firestore Rules.`],
+    [`সংরক্ষণ করা যায়নি:`,`Could not save:`],[`মুছে ফেলা যায়নি:`,`Could not delete:`],
+    [`ডেটা অনলাইনে জমা থাকে এবং সবাই একই ডেটা দেখে। তবুও মাঝে মাঝে ব্যাকআপ ডাউনলোড করে রাখুন।`,`Data is stored online and everyone sees the same data. Still, download a backup from time to time.`],
+    [`ব্যাকআপের ডেটা অনলাইন ডেটার সাথে যোগ হবে (একই এন্ট্রি থাকলে বদলে যাবে)। চালিয়ে যাবেন?`,`The backup data will be merged into the online data (entries with the same ID are overwritten). Continue?`],
+    [`পুরনো ডেটা অনলাইনে তোলা`,`Upload Old Data Online`],
+    [`আগের (অনলাইন ছাড়া) ভার্সনে এই ব্রাউজারে যে ডেটা জমেছিল তা এক ক্লিকে অনলাইনে তুলে নিন। একই বোতাম আবার চাপলেও ডেটা দ্বিগুণ হবে না।`,`Upload the data saved in this browser by the earlier (offline) version with one click. Pressing the button again will not duplicate the data.`],
+    [`এই ব্রাউজারের পুরনো ডেটা অনলাইনে তুলুন`,`Upload this browser's old data online`],
+    [`এই ব্রাউজারের পুরনো ডেটা অনলাইনে তোলা হবে। চালিয়ে যাবেন?`,`This browser's old data will be uploaded online. Continue?`],
+    [`পুরনো ডেটা অনলাইনে তোলা হয়েছে।`,`Old data uploaded online.`],
+    [`এই ব্রাউজারে`,`In this browser:`],[`টি ক্যাশ ও`,`cash and`],[`টি খরচের এন্ট্রি আছে।`,`expense entries.`]
   ].sort((a,b) => b[0].length - a[0].length);
   const tx = s => { if (lang !== "en") return s; for (const [b, e] of DICT) if (s.indexOf(b) >= 0) s = s.split(b).join(e); return s; };
   const alert = m => window.alert(tx(m));
@@ -321,7 +338,7 @@
     for (let y = lo; y <= hi; y++) o += `<option value="${y}" ${y === cur ? "selected" : ""}>${y}</option>`;
     return `<div class="card"><h3 style="margin-top:0">সাল বেছে নিন</h3><div class="bar" style="justify-content:flex-start"><select id="${sel}" style="width:170px">${o}</select><button id="${btn}">চালিয়ে যান</button></div></div>`;
   }
-  const VIEWS = ["setupView","loginView","menuView","cashView","expView","repView","backupView"];
+  const VIEWS = ["bootView","loginView","menuView","cashView","expView","repView","backupView"];
 
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } };
   const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
@@ -340,47 +357,130 @@
   function show(id){
     curView = id;
     VIEWS.forEach(v => $(v).classList.toggle("hidden", v !== id));
-    const loggedIn = !!sessionStorage.getItem(K_SESSION);
+    const loggedIn = !!currentUser;
     $("who").classList.toggle("hidden", !loggedIn);
-    if (loggedIn) $("whoName").textContent = sessionStorage.getItem(K_SESSION);
+    if (loggedIn) $("whoName").textContent = userEmail();
   }
 
-  function start(){
-    if (!load(K_USER, null)) return show("setupView");
-    if (sessionStorage.getItem(K_SESSION)) return show("menuView");
-    show("loginView");
+  // ---- Firebase (লগইন ও অনলাইন ডেটা) ----
+  const FB_CONFIG = {
+    apiKey: "AIzaSyCd5iy3wZT90TngOY46FRpxqKTfJp_UFlI",
+    authDomain: "accounts-intelligence.firebaseapp.com",
+    projectId: "accounts-intelligence",
+    storageBucket: "accounts-intelligence.firebasestorage.app",
+    messagingSenderId: "466697470874",
+    appId: "1:466697470874:web:ff5ac955c44dfb292df023"
+  };
+  let fb = null, CASH = [], EXP = [], currentUser = null, loaded = {cash:false, exp:false}, unsubs = [];
+  const userEmail = () => currentUser ? (currentUser.email || "") : "";
+  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  const sane = list => list.filter(x => x && x.id && x.date && x.amount > 0).map(x => JSON.parse(JSON.stringify(x)));
+
+  async function initFirebase(){
+    const base = "https://www.gstatic.com/firebasejs/10.12.2/";
+    const mods = await Promise.all([import(base + "firebase-app.js"), import(base + "firebase-auth.js"), import(base + "firebase-firestore.js")]);
+    const app = mods[0].initializeApp(FB_CONFIG);
+    fb = {A: mods[1], F: mods[2], auth: mods[1].getAuth(app), db: mods[2].getFirestore(app)};
   }
 
-  // ---- সেটআপ ----
-  $("suBtn").onclick = async () => {
-    const u = $("suUser").value.trim(), p = $("suPass").value, p2 = $("suPass2").value;
-    const m = $("suMsg");
-    if (!u) return m.textContent = "ইউজারনেম দিন।";
-    if (p.length < 6) return m.textContent = "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।";
-    if (p !== p2) return m.textContent = "দুইবারের পাসওয়ার্ড মিলছে না।";
-    const salt = randSalt();
-    save(K_USER, {username:u, salt, hash: await hash(p, salt)});
-    sessionStorage.setItem(K_SESSION, u);
-    $("suPass").value = $("suPass2").value = ""; m.textContent = "";
-    show("menuView");
+  const errText = e => (e && (e.code || e.message)) || "";
+  const DBX = {
+    add(col, entry){
+      return fb.F.setDoc(fb.F.doc(fb.db, col, entry.id), entry).then(() => true, err => { alert("সংরক্ষণ করা যায়নি: " + errText(err)); return false; });
+    },
+    del(col, id){
+      return fb.F.deleteDoc(fb.F.doc(fb.db, col, id)).then(() => true, err => { alert("মুছে ফেলা যায়নি: " + errText(err)); return false; });
+    },
+    async many(col, list){
+      try {
+        for (let i = 0; i < list.length; i += 400){
+          const b = fb.F.writeBatch(fb.db);
+          list.slice(i, i + 400).forEach(x => b.set(fb.F.doc(fb.db, col, x.id), x));
+          await b.commit();
+        }
+        return true;
+      } catch(err){ alert("সংরক্ষণ করা যায়নি: " + errText(err)); return false; }
+    }
   };
 
-  // ---- লগইন ----
-  async function doLogin(){
-    const rec = load(K_USER, null), m = $("liMsg");
-    const u = $("liUser").value.trim(), p = $("liPass").value;
-    if (!rec) return start();
-    if (u !== rec.username || await hash(p, rec.salt) !== rec.hash){
-      return m.textContent = "ইউজারনেম বা পাসওয়ার্ড ভুল।";
+  function setStatus(kind, err){
+    const el = $("dataStatus");
+    if (kind === "ok"){ el.className = "status hidden"; el.textContent = ""; return; }
+    el.className = "status" + (kind === "error" ? " bad" : "");
+    el.textContent = kind === "error" ? "ডেটা পড়া যায়নি। ইন্টারনেট সংযোগ ও Firestore Rules দেখুন।" : "ডেটা লোড হচ্ছে…";
+    if (kind === "error" && err){
+      const sp = document.createElement("span");
+      sp.setAttribute("translate", "no");
+      sp.textContent = " (" + errText(err) + ")";
+      el.appendChild(sp);
     }
-    sessionStorage.setItem(K_SESSION, u);
-    $("liPass").value = ""; m.textContent = "";
+  }
+
+  function softRerender(){
+    if (!currentUser) return;
+    if (curView === "expView" && ex.form && $("eDesc")){
+      const d = $("eDesc").value, a = $("eAmt").value, f = document.activeElement && document.activeElement.id;
+      renderExp();
+      if ($("eDesc")){ $("eDesc").value = d; $("eAmt").value = a; if (f && $(f)) $(f).focus(); }
+    } else rerender();
+  }
+  function dataChanged(){
+    setStatus(loaded.cash && loaded.exp ? "ok" : "loading");
+    softRerender();
+  }
+
+  function onUser(u){
+    currentUser = u;
+    unsubs.forEach(f => { try { f(); } catch(e){} });
+    unsubs = []; CASH = []; EXP = []; loaded = {cash:false, exp:false};
+    if (!u){ setStatus("ok"); show("loginView"); return; }
+    setStatus("loading");
+    const listen = (name, key, set) => unsubs.push(fb.F.onSnapshot(fb.F.collection(fb.db, name),
+      snap => { set(snap.docs.map(d => Object.assign({id: d.id}, d.data()))); loaded[key] = true; dataChanged(); },
+      err => setStatus("error", err)));
+    listen("cash", "cash", v => { CASH = v; });
+    listen("expenses", "exp", v => { EXP = v; });
     show("menuView");
+  }
+
+  // ---- লগইন ----
+  function authMsg(err){
+    const c = (err && err.code) || "";
+    if (/invalid-credential|wrong-password|user-not-found|invalid-email|missing-password/.test(c)) return "ইমেইল বা পাসওয়ার্ড ভুল।";
+    if (c === "auth/too-many-requests") return "অনেকবার ভুল চেষ্টা হয়েছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।";
+    if (c === "auth/network-request-failed") return "ইন্টারনেট সংযোগ নেই।";
+    return "লগইন করা যায়নি। " + c;
+  }
+  async function doLogin(){
+    const m = $("liMsg"), e = $("liUser").value.trim(), p = $("liPass").value;
+    if (!e || !p) return void (m.textContent = "ইমেইল ও পাসওয়ার্ড দিন।");
+    if (!fb) return void (m.textContent = "অনলাইন সেবা চালু হয়নি। ইন্টারনেট সংযোগ দেখে পাতা রিফ্রেশ করুন।");
+    $("liBtn").disabled = true;
+    try {
+      await fb.A.signInWithEmailAndPassword(fb.auth, e, p);
+      $("liPass").value = ""; m.textContent = "";
+    } catch(err){ m.textContent = authMsg(err); }
+    $("liBtn").disabled = false;
   }
   $("liBtn").onclick = doLogin;
   ["liUser","liPass"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); }));
+  $("logoutBtn").onclick = () => { if (fb) fb.A.signOut(fb.auth); };
 
-  $("logoutBtn").onclick = () => { sessionStorage.removeItem(K_SESSION); $("liUser").value=""; show("loginView"); };
+  // ---- পুরনো (অনলাইন ছাড়া) ডেটা অনলাইনে তোলা ----
+  function refreshMig(){
+    const c = load(K_CASH, []), x = load(K_EXP, []);
+    $("migCard").classList.toggle("hidden", c.length + x.length === 0);
+    $("migInfo").textContent = `এই ব্রাউজারে ${c.length} টি ক্যাশ ও ${x.length} টি খরচের এন্ট্রি আছে।`;
+    $("migMsg").textContent = "";
+  }
+  $("migBtn").onclick = async () => {
+    const m = $("migMsg");
+    if (!confirm("এই ব্রাউজারের পুরনো ডেটা অনলাইনে তোলা হবে। চালিয়ে যাবেন?")) return;
+    $("migBtn").disabled = true;
+    const ok = (await DBX.many("cash", sane(load(K_CASH, [])))) && (await DBX.many("expenses", sane(load(K_EXP, []))));
+    $("migBtn").disabled = false;
+    if (ok){ m.className = "ok"; m.textContent = "পুরনো ডেটা অনলাইনে তোলা হয়েছে।"; }
+  };
 
   // ---- নেভিগেশন ----
   document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => show("menuView"));
@@ -388,12 +488,12 @@
   $("goExp").onclick = () => { openExp(); show("expView"); };
   document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => setLang(b.dataset.lang));
   $("goRep").onclick = () => { openRep(); show("repView"); };
-  $("goBackup").onclick = () => { $("bMsg").textContent = ""; show("backupView"); };
+  $("goBackup").onclick = () => { $("bMsg").textContent = ""; refreshMig(); show("backupView"); };
 
   // ---- ক্যাশ ----
   let selYear = new Date().getFullYear(), selMonth = new Date().getMonth();
 
-  function cashList(){ return load(K_CASH, []); }
+  function cashList(){ return CASH; }
 
   function openCash(){
     const now = new Date();
@@ -440,8 +540,7 @@
         `</tbody></table><div class="total"><span>${MONTHS[selMonth]} মাসের মোট</span><span>${taka(totals[selMonth])}</span></div>`;
       $("monthTable").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
         if (!confirm("এই এন্ট্রিটি মুছে ফেলবেন?")) return;
-        save(K_CASH, cashList().filter(c => c.id !== b.dataset.del));
-        render();
+        DBX.del("cash", b.dataset.del);
       });
     }
   }
@@ -454,9 +553,7 @@
     const m = $("cMsg"); m.className = "msg";
     if (!date) return m.textContent = "তারিখ দিন।";
     if (!(amt > 0)) return m.textContent = "সঠিক টাকার পরিমাণ দিন।";
-    const list = cashList();
-    list.push({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, amount: amt, source: src, note, by: sessionStorage.getItem(K_SESSION)});
-    save(K_CASH, list);
+    DBX.add("cash", {id: newId(), date, amount: amt, source: src, note, by: userEmail()});
     selYear = +date.slice(0,4); selMonth = +date.slice(5,7) - 1;
     $("cAmt").value = ""; $("cNote").value = "";
     render();
@@ -467,7 +564,7 @@
   // ---- খরচ ----
   const ex = {y:null, m:null, d:null, form:false};
   const pad = n => String(n).padStart(2,"0");
-  const expList = () => load(K_EXP, []);
+  const expList = () => EXP;
   const sumCash = (y,m) => cashList().filter(c => c.date.startsWith(`${y}-${pad(m+1)}`)).reduce((a,c) => a + c.amount, 0);
   const sumExp = prefix => expList().filter(e => e.date.startsWith(prefix)).reduce((a,e) => a + e.amount, 0);
   const sumOf = l => l.reduce((a,x) => a + x.amount, 0);
@@ -559,8 +656,7 @@
     $("expPlus").onclick = () => { ex.form = !ex.form; renderExp(); };
     box.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
       if (!confirm("এই খরচটি মুছে ফেলবেন?")) return;
-      save(K_EXP, expList().filter(e => e.id !== b.dataset.del));
-      renderExp();
+      DBX.del("expenses", b.dataset.del);
     });
     if (ex.form){
       fillHeads();
@@ -569,10 +665,9 @@
         const desc = $("eDesc").value.trim(), amt = parseFloat($("eAmt").value), m = $("eMsg");
         if (!desc) return m.textContent = "খরচের খাত লিখুন বা বেছে নিন।";
         if (!(amt > 0)) return m.textContent = "সঠিক টাকার পরিমাণ দিন।";
-        const l = expList();
-        l.push({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, desc, amount: amt, by: sessionStorage.getItem(K_SESSION)});
-        save(K_EXP, l);
-        renderExp();
+        m.textContent = "";
+        $("eDesc").value = ""; $("eAmt").value = ""; $("eDesc").focus();
+        DBX.add("expenses", {id: newId(), date, desc, amount: amt, by: userEmail()});
       };
       $("eSave").onclick = doSave;
       $("eAmt").addEventListener("keydown", e => { if (e.key === "Enter") doSave(); });
@@ -845,14 +940,13 @@
   $("importFile").onchange = e => {
     const f = e.target.files[0], m = $("bMsg"); if (!f) return;
     const r = new FileReader();
-    r.onload = () => {
+    r.onload = async () => {
       try {
         const d = JSON.parse(r.result);
         if (!Array.isArray(d.cash)) throw 0;
-        if (!confirm("বর্তমান ক্যাশ ডেটা মুছে ব্যাকআপের ডেটা বসানো হবে। চালিয়ে যাবেন?")) return;
-        save(K_CASH, d.cash.filter(c => c && c.id && c.date && c.amount > 0));
-        if (Array.isArray(d.expenses)) save(K_EXP, d.expenses.filter(x => x && x.id && x.date && x.amount > 0));
-        m.className = "ok"; m.textContent = "ডেটা পুনরুদ্ধার হয়েছে।";
+        if (!confirm("ব্যাকআপের ডেটা অনলাইন ডেটার সাথে যোগ হবে (একই এন্ট্রি থাকলে বদলে যাবে)। চালিয়ে যাবেন?")) return;
+        const ok = (await DBX.many("cash", sane(d.cash))) && (!Array.isArray(d.expenses) || await DBX.many("expenses", sane(d.expenses)));
+        if (ok){ m.className = "ok"; m.textContent = "ডেটা পুনরুদ্ধার হয়েছে।"; }
       } catch(_){ m.className = "msg"; m.textContent = "ফাইলটি সঠিক ব্যাকআপ ফাইল নয়।"; }
       e.target.value = "";
     };
@@ -860,7 +954,11 @@
   };
 
   applyLang(false);
-  start();
+  show("bootView");
+  initFirebase().then(() => fb.A.onAuthStateChanged(fb.auth, onUser)).catch(() => {
+    show("loginView");
+    $("liMsg").textContent = "অনলাইন সেবা চালু হয়নি। ইন্টারনেট সংযোগ দেখে পাতা রিফ্রেশ করুন।";
+  });
 })();
 </script>
 </body>
