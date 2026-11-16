@@ -91,6 +91,10 @@
     #printArea .stmt td,#printArea .stmt th{font-size:8.5pt;padding:.5px 3px}
     #printArea .stmt .t1{font-size:14pt}
   }
+  .langbox{display:flex;align-items:center;gap:6px;font-size:.9rem;color:var(--muted)}
+  button.lg{background:#fff;color:var(--ink);border:1px solid var(--line);padding:6px 14px}
+  button.lg:hover{background:#eef3ff}
+  button.lg.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   .hidden{display:none!important}
 </style>
 </head>
@@ -128,7 +132,10 @@
 
   <!-- মেনু -->
   <section class="hidden" id="menuView">
-    <h2 style="margin-top:0">মেনু</h2>
+    <div class="bar" style="margin-bottom:14px">
+      <h2 style="margin:0">মেনু</h2>
+      <div class="langbox">ভাষা: <button class="lg" data-lang="bn" translate="no">বাংলা</button><button class="lg" data-lang="en" translate="no">English</button></div>
+    </div>
     <div class="menu">
       <button class="tile" id="goCash"><b>＋ ক্যাশ যোগ করুন</b><span>হেড অফিস থেকে আনা ক্যাশ ও মাসভিত্তিক রেকর্ড</span></button>
       <button class="tile" id="goExp"><b>− খরচ</b><span>সাল → মাস → দিন অনুযায়ী খরচের হিসাব ও অবশিষ্ট টাকা</span></button>
@@ -212,13 +219,112 @@
   "use strict";
   const $ = id => document.getElementById(id);
   const K_USER = "ai_user", K_CASH = "ai_cash", K_EXP = "ai_expense", K_SESSION = "ai_session";
-  const MONTHS = ["জানুয়ারি","ফেব্রুয়ারি","মার্চ","এপ্রিল","মে","জুন","জুলাই","আগস্ট","সেপ্টেম্বর","অক্টোবর","নভেম্বর","ডিসেম্বর"];
+  let lang = "bn";
+  try { if (localStorage.getItem("ai_lang") === "en") lang = "en"; } catch(e){}
+  const MON_BN = ["জানুয়ারি","ফেব্রুয়ারি","মার্চ","এপ্রিল","মে","জুন","জুলাই","আগস্ট","সেপ্টেম্বর","অক্টোবর","নভেম্বর","ডিসেম্বর"];
+  const MON_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const MONTHS = (lang === "en" ? MON_EN : MON_BN).slice();
+  let curView = null;
+
+  // ---- ভাষা (বাংলা / English) ----
+  const DICT = [
+    [`লগআউট`,`Logout`],[`প্রথমবার সেটআপ`,`First-time setup`],
+    [`সফটওয়্যারে ঢোকার জন্য ইউজারনেম ও পাসওয়ার্ড তৈরি করুন।`,`Create a username and password to sign in.`],
+    [`ইউজারনেম`,`Username`],[`পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)`,`Password (at least 6 characters)`],[`পাসওয়ার্ড আবার দিন`,`Re-enter password`],[`পাসওয়ার্ড`,`Password`],
+    [`অ্যাকাউন্ট তৈরি করুন`,`Create account`],[`লগইন`,`Login`],[`প্রবেশ করুন`,`Sign in`],[`মেনু`,`Menu`],[`ভাষা`,`Language`],
+    [`ক্যাশ যোগ করুন`,`Add Cash`],[`হেড অফিস থেকে আনা ক্যাশ ও মাসভিত্তিক রেকর্ড`,`Cash brought from head office, with month-wise records`],
+    [`সাল → মাস → দিন অনুযায়ী খরচের হিসাব ও অবশিষ্ট টাকা`,`Expense records by year → month → day, with remaining balance`],
+    [`দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)`,`Daily / monthly / yearly cash & expense statement (Excel, PDF, Print)`],
+    [`ডেটা ডাউনলোড ও পুনরুদ্ধার`,`Download and restore data`],[`← মেনুতে ফিরুন`,`← Back to menu`],
+    [`রিপোর্ট`,`Report`],[`ব্যাকআপ`,`Backup`],[`টাকার পরিমাণ (৳)`,`Amount (৳)`],[`নোট / ভাউচার নম্বর (ঐচ্ছিক)`,`Note / voucher no. (optional)`],
+    [`মাসভিত্তিক রেকর্ড`,`Month-wise Records`],[`সংরক্ষণ করুন`,`Save`],[`বছর:`,`Year:`],
+    [`ডেটা এই ব্রাউজারে সংরক্ষিত থাকে। ব্রাউজারের ডেটা মুছে ফেললে বা অন্য কম্পিউটারে গেলে ডেটা পাওয়া যাবে না, তাই নিয়মিত ব্যাকআপ রাখুন।`,`Data is stored in this browser. If you clear the browser data or use another computer, the data will not be available, so keep regular backups.`],
+    [`ব্যাকআপ ডাউনলোড করুন`,`Download Backup`],[`ব্যাকআপ ফাইল থেকে পুনরুদ্ধার`,`Restore from Backup File`],
+    [`ইউজারনেম দিন।`,`Enter a username.`],[`পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।`,`Password must be at least 6 characters.`],
+    [`দুইবারের পাসওয়ার্ড মিলছে না।`,`The two passwords do not match.`],[`ইউজারনেম বা পাসওয়ার্ড ভুল।`,`Wrong username or password.`],
+    [`টি এন্ট্রি`,`entries`],[`সালের মোট ক্যাশ`,`Total cash`],[`এই মাসে কোনো ক্যাশ যোগ করা হয়নি।`,`No cash has been added this month.`],
+    [`মাসের মোট`,`Total`],[`এই এন্ট্রিটি মুছে ফেলবেন?`,`Delete this entry?`],[`তারিখ দিন।`,`Enter a date.`],[`সঠিক টাকার পরিমাণ দিন।`,`Enter a valid amount.`],
+    [`ক্যাশ যোগ হয়েছে।`,`Cash added.`],[`তারিখ`,`Date`],[`উৎস`,`Source`],[`নোট`,`Note`],[`পরিমাণ`,`Amount`],[`মুছুন`,`Delete`],[`টাকা`,`Amount`],
+    [`সাল বেছে নিন`,`Select Year`],[`মাস বেছে নিন`,`Select Month`],
+    [`দিন বেছে নিন (শুধু একদিনের রিপোর্টের জন্য)`,`Select a day (for a single-day report only)`],[`দিন বেছে নিন`,`Select Day`],[`চালিয়ে যান`,`Continue`],
+    [`আগের মাসের জের`,`Previous month's balance`],[`মাসের ক্যাশ`,`Cash`],[`মোট খরচ`,`Total expense`],[`অবশিষ্ট টাকা`,`Remaining balance`],[`অবশিষ্ট`,`Remaining`],
+    [`ক্যাশ (জেরসহ)`,`Cash (incl. b/f)`],[`ক্যাশ`,`Cash`],[`খরচের হিসাব`,`Expense Entry`],
+    [`খরচের খাত (তালিকা থেকে বেছে নিন বা নতুন লিখুন)`,`Expense head (choose from the list or type a new one)`],
+    [`কত টাকা খরচ হয়েছে (৳)`,`Amount spent (৳)`],[`খরচ সংরক্ষণ করুন`,`Save Expense`],[`এই দিনের মোট খরচ`,`Total expense for this day`],
+    [`এই দিনের খরচ`,`Expenses for this day`],[`এই দিনে কোনো খরচ যোগ করা হয়নি।`,`No expense has been added for this day.`],
+    [`খরচের খাত লিখুন বা বেছে নিন।`,`Enter or choose an expense head.`],[`খরচের খাত`,`Expense Head`],[`এই খরচটি মুছে ফেলবেন?`,`Delete this expense?`],
+    [`খরচ`,`Expense`],[`সাল`,`Year`],
+    [`সালের পুরো বছরের রিপোর্ট`,`Full-Year Report`],[`পুরো মাসের রিপোর্ট`,`Full-Month Report`],[`দিনের রিপোর্ট`,`Day Report`],
+    [`Excel ডাউনলোড`,`Download Excel`],[`PDF / প্রিন্ট`,`PDF / Print`],
+    [`PDF পেতে "PDF / প্রিন্ট" চেপে প্রিন্টার হিসেবে "Save as PDF" বেছে নিন।`,`To get a PDF, press "PDF / Print" and choose "Save as PDF" as the printer.`],
+    [`প্রিভিউ`,`Preview`],[`এই বছরে কোনো ক্যাশ বা খরচের এন্ট্রি নেই।`,`There are no cash or expense entries for this year.`],
+    [`Excel তৈরির লাইব্রেরি লোড হয়নি। ইন্টারনেট সংযোগ দেখে পাতা রিফ্রেশ করে আবার চেষ্টা করুন।`,`The Excel library failed to load. Check your internet connection, refresh the page and try again.`],
+    [`Excel ফাইল তৈরি করা যায়নি:`,`Could not create the Excel file:`],
+    [`বর্তমান ক্যাশ ডেটা মুছে ব্যাকআপের ডেটা বসানো হবে। চালিয়ে যাবেন?`,`The current data will be replaced with the backup data. Continue?`],
+    [`ডেটা পুনরুদ্ধার হয়েছে।`,`Data restored.`],[`ফাইলটি সঠিক ব্যাকআপ ফাইল নয়।`,`This is not a valid backup file.`]
+  ].sort((a,b) => b[0].length - a[0].length);
+  const tx = s => { if (lang !== "en") return s; for (const [b, e] of DICT) if (s.indexOf(b) >= 0) s = s.split(b).join(e); return s; };
+  const alert = m => window.alert(tx(m));
+  const confirm = m => window.confirm(tx(m));
+  const srcLabel = s => (lang === "en" && s === "হেড অফিস") ? "Head Office" : s;
+
+  const tmap = new WeakMap();
+  const rawNode = n => { for (let e = n.parentElement; e; e = e.parentElement){ if (e.tagName === "SCRIPT" || e.tagName === "STYLE" || e.getAttribute("translate") === "no") return true; } return false; };
+  function xNode(n){
+    if (rawNode(n)) return;
+    let rec = tmap.get(n);
+    if (lang === "en"){
+      if (!rec || n.nodeValue !== rec.out){ const src = n.nodeValue; rec = {src, out: tx(src)}; tmap.set(n, rec); }
+      if (n.nodeValue !== rec.out) n.nodeValue = rec.out;
+    } else if (rec && n.nodeValue === rec.out){
+      if (n.nodeValue !== rec.src) n.nodeValue = rec.src;
+      tmap.delete(n);
+    }
+  }
+  function xTree(root){
+    if (root.nodeType === 3) return xNode(root);
+    if (root.nodeType !== 1) return;
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), list = [];
+    while (w.nextNode()) list.push(w.currentNode);
+    list.forEach(xNode);
+  }
+  const OBS = {childList:true, subtree:true, characterData:true};
+  const obs = new MutationObserver(muts => {
+    if (lang !== "en") return;
+    obs.disconnect();
+    muts.forEach(m => { if (m.type === "characterData") xNode(m.target); else m.addedNodes.forEach(xTree); });
+    obs.observe(document.body, OBS);
+  });
+  function rerender(){
+    if (curView === "cashView") render();
+    else if (curView === "expView") renderExp();
+    else if (curView === "repView") renderRep();
+  }
+  function applyLang(again){
+    document.documentElement.lang = lang;
+    MONTHS.splice(0, 12, ...(lang === "en" ? MON_EN : MON_BN));
+    document.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
+    obs.disconnect();
+    xTree(document.body);
+    obs.observe(document.body, OBS);
+    if (again) rerender();
+  }
+  function setLang(l){ lang = l; try { localStorage.setItem("ai_lang", l); } catch(e){} applyLang(true); }
+
+  function yearPicker(sel, btn){
+    const cur = new Date().getFullYear(), ys = [];
+    cashList().concat(expList()).forEach(x => ys.push(+x.date.slice(0,4)));
+    const lo = Math.min(2000, ...ys), hi = Math.max(cur + 20, ...ys);
+    let o = "";
+    for (let y = lo; y <= hi; y++) o += `<option value="${y}" ${y === cur ? "selected" : ""}>${y}</option>`;
+    return `<div class="card"><h3 style="margin-top:0">সাল বেছে নিন</h3><div class="bar" style="justify-content:flex-start"><select id="${sel}" style="width:170px">${o}</select><button id="${btn}">চালিয়ে যান</button></div></div>`;
+  }
   const VIEWS = ["setupView","loginView","menuView","cashView","expView","repView","backupView"];
 
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } };
   const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
   const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const taka = n => "৳ " + Number(n).toLocaleString("bn-BD", {minimumFractionDigits:0, maximumFractionDigits:2});
+  const taka = n => "৳ " + Number(n).toLocaleString(lang === "en" ? "en-US" : "bn-BD", {minimumFractionDigits:0, maximumFractionDigits:2});
 
   async function hash(pass, salt){
     const data = new TextEncoder().encode(salt + ":" + pass);
@@ -230,6 +336,7 @@
   }
 
   function show(id){
+    curView = id;
     VIEWS.forEach(v => $(v).classList.toggle("hidden", v !== id));
     const loggedIn = !!sessionStorage.getItem(K_SESSION);
     $("who").classList.toggle("hidden", !loggedIn);
@@ -277,6 +384,7 @@
   document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => show("menuView"));
   $("goCash").onclick = () => { openCash(); show("cashView"); };
   $("goExp").onclick = () => { openExp(); show("expView"); };
+  document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => setLang(b.dataset.lang));
   $("goRep").onclick = () => { openRep(); show("repView"); };
   $("goBackup").onclick = () => { $("bMsg").textContent = ""; show("backupView"); };
 
@@ -289,6 +397,7 @@
     const now = new Date();
     $("cDate").value = now.toISOString().slice(0,10);
     $("cAmt").value = ""; $("cNote").value = ""; $("cMsg").textContent = "";
+    $("cSrc").value = lang === "en" ? "Head Office" : "হেড অফিস";
     selYear = now.getFullYear(); selMonth = now.getMonth();
     render();
   }
@@ -325,7 +434,7 @@
     } else {
       $("monthTable").innerHTML =
         `<table><thead><tr><th>তারিখ</th><th>উৎস</th><th>নোট</th><th class="amt">পরিমাণ</th><th></th></tr></thead><tbody>` +
-        rows.map(c => `<tr><td>${esc(c.date.split("-").reverse().join("/"))}</td><td>${esc(c.source)}</td><td>${esc(c.note||"—")}</td><td class="amt">${taka(c.amount)}</td><td><button class="danger" data-del="${c.id}">মুছুন</button></td></tr>`).join("") +
+        rows.map(c => `<tr><td>${esc(c.date.split("-").reverse().join("/"))}</td><td translate="no">${esc(srcLabel(c.source))}</td><td translate="no">${esc(c.note||"—")}</td><td class="amt">${taka(c.amount)}</td><td><button class="danger" data-del="${c.id}">মুছুন</button></td></tr>`).join("") +
         `</tbody></table><div class="total"><span>${MONTHS[selMonth]} মাসের মোট</span><span>${taka(totals[selMonth])}</span></div>`;
       $("monthTable").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
         if (!confirm("এই এন্ট্রিটি মুছে ফেলবেন?")) return;
@@ -399,16 +508,8 @@
     });
 
     if (ex.y === null){
-      const set = new Set();
-      cashList().forEach(x => set.add(+x.date.slice(0,4)));
-      expList().forEach(x => set.add(+x.date.slice(0,4)));
-      const cur = new Date().getFullYear();
-      for (let y = cur - 2; y <= cur + 1; y++) set.add(y);
-      const years = Array.from(set).sort((a,b) => b - a);
-      box.innerHTML = `<div class="card"><h3 style="margin-top:0">সাল বেছে নিন</h3><div class="months">` +
-        years.map(y => `<button class="m" data-y="${y}"><strong>${y}</strong><small>মোট খরচ ${taka(sumExp(String(y)))}</small></button>`).join("") +
-        `</div></div>`;
-      box.querySelectorAll("[data-y]").forEach(b => b.onclick = () => { ex.y = +b.dataset.y; renderExp(); });
+      box.innerHTML = yearPicker("exY", "exYGo");
+      $("exYGo").onclick = () => { ex.y = +$("exY").value; renderExp(); };
       return;
     }
 
@@ -449,7 +550,7 @@
     h += `</div><div class="card"><h3 style="margin-top:0">এই দিনের খরচ</h3>`;
     if (!rows.length) h += `<p class="hint">এই দিনে কোনো খরচ যোগ করা হয়নি।</p>`;
     else h += `<table><thead><tr><th>খরচের খাত</th><th class="amt">টাকা</th><th></th></tr></thead><tbody>` +
-      rows.map(e => `<tr><td>${esc(e.desc)}</td><td class="amt">${taka(e.amount)}</td><td><button class="danger" data-del="${e.id}">মুছুন</button></td></tr>`).join("") +
+      rows.map(e => `<tr><td translate="no">${esc(e.desc)}</td><td class="amt">${taka(e.amount)}</td><td><button class="danger" data-del="${e.id}">মুছুন</button></td></tr>`).join("") +
       `</tbody></table><div class="total"><span>এই দিনের মোট খরচ</span><span>${taka(dayTotal)}</span></div>`;
     box.innerHTML = h + `</div>`;
 
@@ -477,7 +578,6 @@
   }
 
   // ---- রিপোর্ট ----
-  const MON_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const MON3 = MON_EN.map(n => n.slice(0,3));
   const HEADS = [];
   const r2 = x => Math.round(x * 100) / 100;
@@ -542,7 +642,7 @@
       rows += `<tr><td>${l ? esc(l.label) : ""}</td><td class="n">${l ? fmt(l.amt) : ""}</td><td>${h ? esc(h.name) : ""}</td>` +
               `<td class="n">${h ? fmt(h.prev) : ""}</td><td class="n">${h ? fmt(h.day) : ""}</td><td class="n">${h ? fmt(h.tot) : ""}</td></tr>`;
     }
-    return `<div class="stmt"><div class="t1">Poly Corr Packaging</div><div class="t2">DAILY CASH &amp; EXPENSES STATEMENT</div>` +
+    return `<div class="stmt" translate="no"><div class="t1">Poly Corr Packaging</div><div class="t2">DAILY CASH &amp; EXPENSES STATEMENT</div>` +
       `<div class="t3">For the month of ${s.monthLabel}</div><div class="dt"><span>Date: ${s.dateLabel}</span></div>` +
       `<table><colgroup><col style="width:29%"><col style="width:10%"><col style="width:28%"><col style="width:12%"><col style="width:10%"><col style="width:12%"></colgroup>` +
       `<thead><tr class="topsum"><td></td><td>${fmt(s.totalIn)}</td><td></td><td>${fmt(s.totPrev)}</td><td></td><td>${fmt(s.totMonth)}</td></tr>` +
@@ -700,14 +800,8 @@
     });
 
     if (rp.y === null){
-      const set = new Set(), cur = new Date().getFullYear();
-      cashList().forEach(x => set.add(+x.date.slice(0,4)));
-      expList().forEach(x => set.add(+x.date.slice(0,4)));
-      for (let y = cur - 2; y <= cur + 1; y++) set.add(y);
-      const years = Array.from(set).sort((a,b) => b - a);
-      box.innerHTML = `<div class="card"><h3 style="margin-top:0">সাল বেছে নিন</h3><div class="months">` +
-        years.map(y => `<button class="m" data-y="${y}"><strong>${y}</strong></button>`).join("") + `</div></div>`;
-      box.querySelectorAll("[data-y]").forEach(b => b.onclick = () => { rp.y = +b.dataset.y; renderRep(); });
+      box.innerHTML = yearPicker("rpY", "rpYGo");
+      $("rpYGo").onclick = () => { rp.y = +$("rpY").value; renderRep(); };
       return;
     }
 
@@ -763,6 +857,7 @@
     r.readAsText(f);
   };
 
+  applyLang(false);
   start();
 })();
 </script>
