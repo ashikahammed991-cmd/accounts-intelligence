@@ -139,7 +139,7 @@
       <button class="tile" id="goRep"><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
       <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
-    <p class="hint" translate="no">Accounts Intelligence · Version 5 · Online (17-Nov-2026)</p>
+    <p class="hint" translate="no">Accounts Intelligence · Version 6 · Online (17-Nov-2026)</p>
   </section>
 
   <!-- ক্যাশ যোগ -->
@@ -285,7 +285,10 @@
     [`পুরনো ডেটা অনলাইনে তোলা হয়েছে।`,`Old data uploaded online.`],
     [`এই ব্রাউজারে`,`In this browser:`],[`টি ক্যাশ ও`,`cash and`],[`টি খরচের এন্ট্রি আছে।`,`expense entries.`],
     [`ভাউচার নম্বর`,`Voucher No.`],[`কাকে পেইড (Paid To)`,`Paid To`],[`ভাউচার ছাড়া`,`No voucher`],[`টি বিল`,`bills`],[`ভাউচারের মোট`,`Voucher total`],
-    [`একই ভাউচার নম্বর দিলে বিলগুলো এক ভাউচারের নিচে জমা হবে।`,`Bills with the same voucher number are grouped under one voucher.`]
+    [`একই ভাউচার নম্বর দিলে বিলগুলো এক ভাউচারের নিচে জমা হবে।`,`Bills with the same voucher number are grouped under one voucher.`],
+    [`ভাউচার টু রিপোর্ট`,`Voucher to Report`],
+    [`ভাউচার নম্বর লিখলে ওই ভাউচারে কোন কোন বিল এন্ট্রি করা আছে তা দেখা ও প্রিন্ট করা যাবে।`,`Enter a voucher number to see and print which bills are entered under that voucher.`],
+    [`দেখুন`,`View`],[`এই ভাউচার নম্বরে কোনো বিল পাওয়া যায়নি।`,`No bills found for this voucher number.`],[`টি বিল পাওয়া গেছে`,`bills found`]
   ].sort((a,b) => b[0].length - a[0].length);
   const tx = s => { if (lang !== "en") return s; for (const [b, e] of DICT) if (s.indexOf(b) >= 0) s = s.split(b).join(e); return s; };
   const alert = m => window.alert(tx(m));
@@ -771,9 +774,10 @@
       `<tr class="bal"><td></td><td></td><td class="r">Balance =</td><td></td><td></td><td class="n">${fmt(s.balance)}</td></tr></tfoot></table></div>`;
   }
 
-  function printStmts(stmts){
+  function printStmts(stmts){ printHtml(stmts.map(stmtHtml).join("")); }
+  function printHtml(html){
     const pa = $("printArea");
-    pa.innerHTML = stmts.map(stmtHtml).join("");
+    pa.innerHTML = html;
     const done = () => { pa.innerHTML = ""; window.removeEventListener("afterprint", done); };
     window.addEventListener("afterprint", done);
     window.print();
@@ -871,8 +875,55 @@
     }
   }
 
-  const rp = {y:null, m:null, d:null};
-  function openRep(){ rp.y = rp.m = rp.d = null; renderRep(); }
+  const rp = {y:null, m:null, d:null, vq:"", vqDraft:""};
+  function openRep(){ rp.y = rp.m = rp.d = null; rp.vq = rp.vqDraft = ""; renderRep(); }
+
+  // ---- ভাউচার টু রিপোর্ট ----
+  const dmy = d => `${d.slice(8,10)}-${MON3[+d.slice(5,7) - 1]}-${d.slice(2,4)}`;
+  function vchData(q){
+    const k = q.trim().toLowerCase();
+    return expList().filter(e => e.voucher && String(e.voucher).trim().toLowerCase() === k)
+      .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.id < b.id ? -1 : 1));
+  }
+  function vchHtml(rows){
+    let total = 0, tr = "";
+    rows.forEach((e, i) => {
+      total += e.amount;
+      tr += `<tr><td class="n">${i + 1}</td><td>${dmy(e.date)}</td><td>${esc(e.desc)}</td><td>${esc(e.paidTo || "")}</td><td class="n">${fmt(e.amount)}</td></tr>`;
+    });
+    return `<div class="stmt" translate="no"><div class="t1">Poly Corr Packaging</div><div class="t2">VOUCHER WISE EXPENSE REPORT</div>` +
+      `<div class="t3">Voucher No: ${esc(String(rows[0].voucher).trim())}</div>` +
+      `<table><colgroup><col style="width:7%"><col style="width:15%"><col style="width:36%"><col style="width:24%"><col style="width:18%"></colgroup>` +
+      `<thead><tr><th>SL</th><th>Date</th><th>HEAD OF EXPENSES</th><th>PAID TO</th><th>Amount</th></tr></thead><tbody>${tr}</tbody>` +
+      `<tfoot><tr class="tot"><td></td><td></td><td>TOTAL (${rows.length} bill${rows.length > 1 ? "s" : ""})</td><td></td><td class="n">${fmt(r2(total))}</td></tr></tfoot></table></div>`;
+  }
+  function vchCard(){
+    const seen = new Map();
+    expList().filter(e => e.voucher).forEach(e => { const v = String(e.voucher).trim(), k = v.toLowerCase(); if (!seen.has(k)) seen.set(k, v); });
+    const all = Array.from(seen.values()).sort((a, b) => b.localeCompare(a, undefined, {numeric:true}));
+    return `<div class="card"><h3 style="margin-top:0">ভাউচার টু রিপোর্ট</h3>` +
+      `<p class="hint" style="margin-top:0">ভাউচার নম্বর লিখলে ওই ভাউচারে কোন কোন বিল এন্ট্রি করা আছে তা দেখা ও প্রিন্ট করা যাবে।</p>` +
+      `<div class="bar" style="justify-content:flex-start"><input id="vqIn" list="vqList" autocomplete="off" style="width:240px"><button id="vqGo">দেখুন</button></div>` +
+      `<datalist id="vqList">${all.map(v => `<option value="${esc(v)}"></option>`).join("")}</datalist><div id="vqOut"></div></div>`;
+  }
+  function showVch(){
+    const out = $("vqOut"), q = rp.vq;
+    if (!q){ out.innerHTML = ""; return; }
+    const rows = vchData(q);
+    if (!rows.length){ out.innerHTML = `<p class="msg" style="margin-top:12px">এই ভাউচার নম্বরে কোনো বিল পাওয়া যায়নি।</p>`; return; }
+    out.innerHTML = `<div class="bar" style="margin:14px 0 8px"><b>${rows.length} টি বিল পাওয়া গেছে</b><button id="vqPrint">PDF / প্রিন্ট</button></div>` +
+      `<div class="stmt-wrap">${vchHtml(rows)}</div>` +
+      `<p class="hint">PDF পেতে "PDF / প্রিন্ট" চেপে প্রিন্টার হিসেবে "Save as PDF" বেছে নিন।</p>`;
+    $("vqPrint").onclick = () => printHtml(vchHtml(rows));
+  }
+  function bindVch(){
+    $("vqIn").value = rp.vqDraft;
+    const go = () => { rp.vq = rp.vqDraft.trim(); showVch(); };
+    $("vqIn").addEventListener("input", e => { rp.vqDraft = e.target.value; });
+    $("vqGo").onclick = go;
+    $("vqIn").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+    showVch();
+  }
 
   function stmtsFor(k){
     if (k === "year"){
@@ -919,8 +970,9 @@
     });
 
     if (rp.y === null){
-      box.innerHTML = yearPicker("rpY", "rpYGo");
+      box.innerHTML = yearPicker("rpY", "rpYGo") + vchCard();
       $("rpYGo").onclick = () => { rp.y = +$("rpY").value; renderRep(); };
+      bindVch();
       return;
     }
 
