@@ -145,7 +145,7 @@
       <button class="tile" id="goRep"><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
       <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
-    <p class="hint" translate="no">Accounts Intelligence · Version 8 · Online (17-Nov-2026)</p>
+    <p class="hint" translate="no">Accounts Intelligence · Version 9 · Online (17-Nov-2026)</p>
   </section>
 
   <!-- ক্যাশ যোগ -->
@@ -530,9 +530,9 @@
   function yearsAvailable(){
     const set = new Set(cashList().map(c => +c.date.slice(0,4)));
     const cur = new Date().getFullYear();
-    for (let y = cur - 2; y <= cur + 1; y++) set.add(y);
+    for (let y = 2000; y <= cur + 20; y++) set.add(y);
     set.add(selYear);
-    return Array.from(set).sort((a,b) => b - a);
+    return Array.from(set).sort((a,b) => a - b);
   }
 
   function render(){
