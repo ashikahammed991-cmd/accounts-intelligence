@@ -98,6 +98,7 @@
   button.lg.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   .status{background:#fff8e1;border:1px solid #f0d58c;color:#7a5b00;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:.9rem}
   .status.bad{background:#fdecea;border-color:#f3b8b3;color:var(--bad)}
+  .vgroup td{background:#eef3ff;font-size:.88rem;border-bottom:1px solid var(--line)}
   .hidden{display:none!important}
 </style>
 </head>
@@ -138,7 +139,7 @@
       <button class="tile" id="goRep"><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
       <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
-    <p class="hint" translate="no">Accounts Intelligence · Version 4 · Online (16-Nov-2026)</p>
+    <p class="hint" translate="no">Accounts Intelligence · Version 5 · Online (17-Nov-2026)</p>
   </section>
 
   <!-- ক্যাশ যোগ -->
@@ -217,6 +218,8 @@
 </main>
 <div id="printArea"></div>
 <datalist id="headList"></datalist>
+<datalist id="vchList"></datalist>
+<datalist id="paidList"></datalist>
 
 <script>
 (function(){
@@ -280,7 +283,9 @@
     [`এই ব্রাউজারের পুরনো ডেটা অনলাইনে তুলুন`,`Upload this browser's old data online`],
     [`এই ব্রাউজারের পুরনো ডেটা অনলাইনে তোলা হবে। চালিয়ে যাবেন?`,`This browser's old data will be uploaded online. Continue?`],
     [`পুরনো ডেটা অনলাইনে তোলা হয়েছে।`,`Old data uploaded online.`],
-    [`এই ব্রাউজারে`,`In this browser:`],[`টি ক্যাশ ও`,`cash and`],[`টি খরচের এন্ট্রি আছে।`,`expense entries.`]
+    [`এই ব্রাউজারে`,`In this browser:`],[`টি ক্যাশ ও`,`cash and`],[`টি খরচের এন্ট্রি আছে।`,`expense entries.`],
+    [`ভাউচার নম্বর`,`Voucher No.`],[`কাকে পেইড (Paid To)`,`Paid To`],[`ভাউচার ছাড়া`,`No voucher`],[`টি বিল`,`bills`],[`ভাউচারের মোট`,`Voucher total`],
+    [`একই ভাউচার নম্বর দিলে বিলগুলো এক ভাউচারের নিচে জমা হবে।`,`Bills with the same voucher number are grouped under one voucher.`]
   ].sort((a,b) => b[0].length - a[0].length);
   const tx = s => { if (lang !== "en") return s; for (const [b, e] of DICT) if (s.indexOf(b) >= 0) s = s.split(b).join(e); return s; };
   const alert = m => window.alert(tx(m));
@@ -419,9 +424,9 @@
   function softRerender(){
     if (!currentUser) return;
     if (curView === "expView" && ex.form && $("eDesc")){
-      const d = $("eDesc").value, a = $("eAmt").value, f = document.activeElement && document.activeElement.id;
+      const ids = ["eVch","ePaid","eDesc","eAmt"], vals = ids.map(i => $(i) ? $(i).value : ""), f = document.activeElement && document.activeElement.id;
       renderExp();
-      if ($("eDesc")){ $("eDesc").value = d; $("eAmt").value = a; if (f && $(f)) $(f).focus(); }
+      if ($("eDesc")){ ids.forEach((i, n) => { if ($(i)) $(i).value = vals[n]; }); if (f && $(f)) $(f).focus(); }
     } else rerender();
   }
   function dataChanged(){
@@ -642,15 +647,28 @@
       `<button class="plus" id="expPlus"><i>＋</i> খরচের হিসাব</button></div>`;
     if (ex.form){
       h += `<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:6px">` +
+        `<div class="row"><div><label>ভাউচার নম্বর</label><input id="eVch" list="vchList" autocomplete="off"></div>` +
+        `<div><label>কাকে পেইড (Paid To)</label><input id="ePaid" list="paidList" autocomplete="off"></div></div>` +
+        `<p class="hint">একই ভাউচার নম্বর দিলে বিলগুলো এক ভাউচারের নিচে জমা হবে।</p>` +
         `<label>খরচের খাত (তালিকা থেকে বেছে নিন বা নতুন লিখুন)</label><input id="eDesc" list="headList" autocomplete="off">` +
         `<label>কত টাকা খরচ হয়েছে (৳)</label><input id="eAmt" type="number" min="0" step="0.01" inputmode="decimal">` +
         `<button class="wide" id="eSave">খরচ সংরক্ষণ করুন</button><div class="msg" id="eMsg"></div></div>`;
     }
     h += `</div><div class="card"><h3 style="margin-top:0">এই দিনের খরচ</h3>`;
     if (!rows.length) h += `<p class="hint">এই দিনে কোনো খরচ যোগ করা হয়নি।</p>`;
-    else h += `<table><thead><tr><th>খরচের খাত</th><th class="amt">টাকা</th><th></th></tr></thead><tbody>` +
-      rows.map(e => `<tr><td translate="no">${esc(e.desc)}</td><td class="amt">${taka(e.amount)}</td><td><button class="danger" data-del="${e.id}">মুছুন</button></td></tr>`).join("") +
-      `</tbody></table><div class="total"><span>এই দিনের মোট খরচ</span><span>${taka(dayTotal)}</span></div>`;
+    else {
+      rows.sort((a, b) => a.id < b.id ? -1 : 1);
+      const groups = new Map();
+      rows.forEach(e => { const k = String(e.voucher || "").trim(); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); });
+      const keys = Array.from(groups.keys()).sort((a, b) => a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, undefined, {numeric:true}));
+      h += `<table><thead><tr><th>খরচের খাত</th><th>কাকে পেইড (Paid To)</th><th class="amt">টাকা</th><th></th></tr></thead><tbody>`;
+      keys.forEach(k => {
+        const g = groups.get(k), gt = g.reduce((a, e) => a + e.amount, 0);
+        h += `<tr class="vgroup"><td colspan="4"><b>${k ? 'ভাউচার নম্বর: <span translate="no">' + esc(k) + '</span>' : 'ভাউচার ছাড়া'}</b> · ${g.length} টি বিল · ভাউচারের মোট ${taka(gt)}</td></tr>`;
+        g.forEach(e => { h += `<tr><td translate="no">${esc(e.desc)}</td><td translate="no">${esc(e.paidTo || "—")}</td><td class="amt">${taka(e.amount)}</td><td><button class="danger" data-del="${e.id}">মুছুন</button></td></tr>`; });
+      });
+      h += `</tbody></table><div class="total"><span>এই দিনের মোট খরচ</span><span>${taka(dayTotal)}</span></div>`;
+    }
     box.innerHTML = h + `</div>`;
 
     $("expPlus").onclick = () => { ex.form = !ex.form; renderExp(); };
@@ -660,14 +678,15 @@
     });
     if (ex.form){
       fillHeads();
-      $("eDesc").focus();
+      $("eVch").focus();
       const doSave = () => {
+        const vch = $("eVch").value.trim(), paid = $("ePaid").value.trim();
         const desc = $("eDesc").value.trim(), amt = parseFloat($("eAmt").value), m = $("eMsg");
         if (!desc) return m.textContent = "খরচের খাত লিখুন বা বেছে নিন।";
         if (!(amt > 0)) return m.textContent = "সঠিক টাকার পরিমাণ দিন।";
         m.textContent = "";
-        $("eDesc").value = ""; $("eAmt").value = ""; $("eDesc").focus();
-        DBX.add("expenses", {id: newId(), date, desc, amount: amt, by: userEmail()});
+        $("eDesc").value = ""; $("eAmt").value = ""; $("ePaid").value = ""; $("ePaid").focus();
+        DBX.add("expenses", {id: newId(), date, desc, amount: amt, voucher: vch, paidTo: paid, by: userEmail()});
       };
       $("eSave").onclick = doSave;
       $("eAmt").addEventListener("keydown", e => { if (e.key === "Enter") doSave(); });
@@ -690,6 +709,9 @@
   }
   function fillHeads(){
     $("headList").innerHTML = allHeads().map(h => `<option value="${esc(h)}"></option>`).join("");
+    const day = `${ex.y}-${pad(ex.m+1)}-${pad(ex.d)}`, opt = v => `<option value="${esc(v)}"></option>`;
+    $("vchList").innerHTML = Array.from(new Set(expList().filter(e => e.date === day && e.voucher).map(e => e.voucher))).map(opt).join("");
+    $("paidList").innerHTML = Array.from(new Set(expList().filter(e => e.paidTo).map(e => e.paidTo))).sort().map(opt).join("");
   }
 
   function monthHasData(y, m){
