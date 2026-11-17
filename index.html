@@ -98,6 +98,12 @@
   button.lg.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   .status{background:#fff8e1;border:1px solid #f0d58c;color:#7a5b00;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:.9rem}
   .status.bad{background:#fdecea;border-color:#f3b8b3;color:var(--bad)}
+  button.edit{background:none;color:var(--brand);padding:4px 8px}
+  button.edit:hover{background:#eef3ff}
+  button.cancel{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  button.cancel:hover{background:#f4f6fb}
+  .modal{position:fixed;inset:0;background:rgba(20,26,40,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .modal .box{background:#fff;border-radius:12px;padding:22px;max-width:480px;width:100%;max-height:90vh;overflow:auto}
   .vgroup td{background:#eef3ff;font-size:.88rem;border-bottom:1px solid var(--line)}
   .hidden{display:none!important}
 </style>
@@ -139,7 +145,7 @@
       <button class="tile" id="goRep"><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
       <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
-    <p class="hint" translate="no">Accounts Intelligence · Version 7 · Online (17-Nov-2026)</p>
+    <p class="hint" translate="no">Accounts Intelligence · Version 8 · Online (17-Nov-2026)</p>
   </section>
 
   <!-- ক্যাশ যোগ -->
@@ -216,6 +222,14 @@
   </section>
 
 </main>
+<div id="editModal" class="modal hidden">
+  <div class="box">
+    <h3 id="edTitle" style="margin-top:0"></h3>
+    <div id="edFields"></div>
+    <div class="msg" id="edMsg"></div>
+    <div class="bar" style="margin-top:14px;justify-content:flex-end"><button class="cancel" id="edCancel">বাতিল</button><button id="edSave">পরিবর্তন সংরক্ষণ করুন</button></div>
+  </div>
+</div>
 <div id="printArea"></div>
 <datalist id="headList"></datalist>
 <datalist id="vchList"></datalist>
@@ -288,7 +302,8 @@
     [`একই ভাউচার নম্বর দিলে বিলগুলো এক ভাউচারের নিচে জমা হবে।`,`Bills with the same voucher number are grouped under one voucher.`],
     [`ভাউচার টু রিপোর্ট`,`Voucher to Report`],
     [`ভাউচার নম্বর লিখলে ওই ভাউচারে কোন কোন বিল এন্ট্রি করা আছে তা দেখা ও প্রিন্ট করা যাবে।`,`Enter a voucher number to see and print which bills are entered under that voucher.`],
-    [`দেখুন`,`View`],[`এই ভাউচার নম্বরে কোনো বিল পাওয়া যায়নি।`,`No bills found for this voucher number.`],[`টি বিল পাওয়া গেছে`,`bills found`]
+    [`দেখুন`,`View`],[`এই ভাউচার নম্বরে কোনো বিল পাওয়া যায়নি।`,`No bills found for this voucher number.`],[`টি বিল পাওয়া গেছে`,`bills found`],
+    [`এডিট`,`Edit`],[`ক্যাশ এন্ট্রি এডিট করুন`,`Edit Cash Entry`],[`খরচ এডিট করুন`,`Edit Expense`],[`বাতিল`,`Cancel`],[`পরিবর্তন সংরক্ষণ করুন`,`Save Changes`]
   ].sort((a,b) => b[0].length - a[0].length);
   const tx = s => { if (lang !== "en") return s; for (const [b, e] of DICT) if (s.indexOf(b) >= 0) s = s.split(b).join(e); return s; };
   const alert = m => window.alert(tx(m));
@@ -544,7 +559,7 @@
     } else {
       $("monthTable").innerHTML =
         `<table><thead><tr><th>তারিখ</th><th>উৎস</th><th>নোট</th><th class="amt">পরিমাণ</th><th></th></tr></thead><tbody>` +
-        rows.map(c => `<tr><td>${esc(c.date.split("-").reverse().join("/"))}</td><td translate="no">${esc(srcLabel(c.source))}</td><td translate="no">${esc(c.note||"—")}</td><td class="amt">${taka(c.amount)}</td><td><button class="danger" data-del="${c.id}">মুছুন</button></td></tr>`).join("") +
+        rows.map(c => `<tr><td>${esc(c.date.split("-").reverse().join("/"))}</td><td translate="no">${esc(srcLabel(c.source))}</td><td translate="no">${esc(c.note||"—")}</td><td class="amt">${taka(c.amount)}</td><td style="white-space:nowrap"><button class="edit" data-kind="cash" data-edit="${c.id}">এডিট</button><button class="danger" data-del="${c.id}">মুছুন</button></td></tr>`).join("") +
         `</tbody></table><div class="total"><span>${MONTHS[selMonth]} মাসের মোট</span><span>${taka(totals[selMonth])}</span></div>`;
       $("monthTable").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
         if (!confirm("এই এন্ট্রিটি মুছে ফেলবেন?")) return;
@@ -668,7 +683,7 @@
       keys.forEach(k => {
         const g = groups.get(k), gt = g.reduce((a, e) => a + e.amount, 0);
         h += `<tr class="vgroup"><td colspan="4"><b>${k ? 'ভাউচার নম্বর: <span translate="no">' + esc(k) + '</span>' : 'ভাউচার ছাড়া'}</b> · ${g.length} টি বিল · ভাউচারের মোট ${taka(gt)}</td></tr>`;
-        g.forEach(e => { h += `<tr><td translate="no">${esc(e.desc)}</td><td translate="no">${esc(e.paidTo || "—")}</td><td class="amt">${taka(e.amount)}</td><td><button class="danger" data-del="${e.id}">মুছুন</button></td></tr>`; });
+        g.forEach(e => { h += `<tr><td translate="no">${esc(e.desc)}</td><td translate="no">${esc(e.paidTo || "—")}</td><td class="amt">${taka(e.amount)}</td><td style="white-space:nowrap"><button class="edit" data-kind="expenses" data-edit="${e.id}">এডিট</button><button class="danger" data-del="${e.id}">মুছুন</button></td></tr>`; });
       });
       h += `</tbody></table><div class="total"><span>এই দিনের মোট খরচ</span><span>${taka(dayTotal)}</span></div>`;
     }
@@ -1002,6 +1017,58 @@
     box.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { rp.d = +b.dataset.d; renderRep(); });
     box.querySelectorAll("[data-act]").forEach(b => b.onclick = () => doAct(b.dataset.act, b.dataset.k));
   }
+
+  // ---- এন্ট্রি এডিট ----
+  let edCtx = null;
+  function closeEdit(){ edCtx = null; $("editModal").classList.add("hidden"); }
+  function openEdit(kind, id){
+    const e = (kind === "cash" ? cashList() : expList()).find(x => x.id === id);
+    if (!e) return;
+    edCtx = {kind, e};
+    $("edMsg").textContent = "";
+    if (kind === "cash"){
+      $("edTitle").textContent = "ক্যাশ এন্ট্রি এডিট করুন";
+      $("edFields").innerHTML = `<div class="row"><div><label>তারিখ</label><input type="date" id="edDate"></div>` +
+        `<div><label>টাকার পরিমাণ (৳)</label><input type="number" id="edAmt" min="0" step="0.01" inputmode="decimal"></div></div>` +
+        `<label>উৎস</label><input id="edSrc"><label>নোট / ভাউচার নম্বর (ঐচ্ছিক)</label><input id="edNote">`;
+      $("edDate").value = e.date; $("edAmt").value = e.amount; $("edSrc").value = e.source || ""; $("edNote").value = e.note || "";
+    } else {
+      $("edTitle").textContent = "খরচ এডিট করুন";
+      $("edFields").innerHTML = `<div class="row"><div><label>তারিখ</label><input type="date" id="edDate"></div>` +
+        `<div><label>টাকার পরিমাণ (৳)</label><input type="number" id="edAmt" min="0" step="0.01" inputmode="decimal"></div></div>` +
+        `<div class="row"><div><label>ভাউচার নম্বর</label><input id="edVch" autocomplete="off"></div>` +
+        `<div><label>কাকে পেইড (Paid To)</label><input id="edPaid" list="paidList" autocomplete="off"></div></div>` +
+        `<label>খরচের খাত</label><input id="edDesc" list="headList" autocomplete="off">`;
+      fillHeads();
+      $("edDate").value = e.date; $("edAmt").value = e.amount; $("edVch").value = e.voucher || ""; $("edPaid").value = e.paidTo || ""; $("edDesc").value = e.desc || "";
+    }
+    $("editModal").classList.remove("hidden");
+  }
+  document.addEventListener("click", ev => {
+    const b = ev.target.closest && ev.target.closest("[data-edit]");
+    if (b) openEdit(b.dataset.kind, b.dataset.edit);
+    else if (ev.target === $("editModal")) closeEdit();
+  });
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape" && edCtx) closeEdit(); });
+  $("edCancel").onclick = closeEdit;
+  $("edSave").onclick = () => {
+    if (!edCtx) return;
+    const kind = edCtx.kind, e = edCtx.e, m = $("edMsg");
+    const date = $("edDate").value, amt = parseFloat($("edAmt").value);
+    if (!date) return void (m.textContent = "তারিখ দিন।");
+    if (!(amt > 0)) return void (m.textContent = "সঠিক টাকার পরিমাণ দিন।");
+    let upd;
+    if (kind === "cash"){
+      upd = Object.assign({}, e, {date, amount: amt, source: $("edSrc").value.trim() || "হেড অফিস", note: $("edNote").value.trim()});
+    } else {
+      const desc = $("edDesc").value.trim();
+      if (!desc) return void (m.textContent = "খরচের খাত লিখুন বা বেছে নিন।");
+      upd = Object.assign({}, e, {date, amount: amt, desc, voucher: $("edVch").value.trim(), paidTo: $("edPaid").value.trim()});
+    }
+    upd.editedBy = userEmail();
+    closeEdit();
+    DBX.add(kind === "cash" ? "cash" : "expenses", upd);
+  };
 
   // ---- ব্যাকআপ ----
   $("exportBtn").onclick = () => {
