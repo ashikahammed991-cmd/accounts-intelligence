@@ -145,7 +145,7 @@
       <button class="tile" id="goRep"><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
       <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
-    <p class="hint" translate="no">Accounts Intelligence · Version 9 · Online (17-Nov-2026)</p>
+    <p class="hint" translate="no">Accounts Intelligence · Version 10 · Online (18-Nov-2026)</p>
   </section>
 
   <!-- ক্যাশ যোগ -->
@@ -697,13 +697,23 @@
     if (ex.form){
       fillHeads();
       $("eVch").focus();
+      // একই ভাউচারের আগের এন্ট্রি থেকে "কাকে পেইড" নিজে বসে যাবে
+      const fillPaid = () => {
+        const k = $("eVch").value.trim().toLowerCase();
+        const hit = k ? expList().filter(e => e.date === date && String(e.voucher || "").trim().toLowerCase() === k && e.paidTo)
+                                 .sort((a, b) => a.id < b.id ? 1 : -1)[0] : null;
+        if (hit){ $("ePaid").value = hit.paidTo; ex.lastAuto = hit.paidTo; }
+        else if ($("ePaid").value === ex.lastAuto){ $("ePaid").value = ""; ex.lastAuto = ""; }
+      };
+      $("eVch").addEventListener("input", fillPaid);
+      $("eVch").addEventListener("change", fillPaid);
       const doSave = () => {
         const vch = $("eVch").value.trim(), paid = $("ePaid").value.trim();
         const desc = $("eDesc").value.trim(), amt = parseFloat($("eAmt").value), m = $("eMsg");
         if (!desc) return m.textContent = "খরচের খাত লিখুন বা বেছে নিন।";
         if (!(amt > 0)) return m.textContent = "সঠিক টাকার পরিমাণ দিন।";
         m.textContent = "";
-        $("eDesc").value = ""; $("eAmt").value = ""; $("ePaid").value = ""; $("ePaid").focus();
+        $("eDesc").value = ""; $("eAmt").value = ""; ex.lastAuto = paid; $("eDesc").focus();
         DBX.add("expenses", {id: newId(), date, desc, amount: amt, voucher: vch, paidTo: paid, by: userEmail()});
       };
       $("eSave").onclick = doSave;
