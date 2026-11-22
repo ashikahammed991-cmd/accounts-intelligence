@@ -145,7 +145,7 @@
       <button class="tile" id="goRep"><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
       <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
-    <p class="hint" translate="no">Accounts Intelligence · Version 10 · Online (18-Nov-2026)</p>
+    <p class="hint" translate="no">Accounts Intelligence · Version 11 · Online (22-Nov-2026)</p>
   </section>
 
   <!-- ক্যাশ যোগ -->
@@ -158,7 +158,7 @@
       <h2 style="margin-top:0">ক্যাশ যোগ করুন</h2>
       <div class="row">
         <div><label>তারিখ</label><input type="date" id="cDate"></div>
-        <div><label>টাকার পরিমাণ (৳)</label><input type="number" id="cAmt" min="0" step="0.01" inputmode="decimal"></div>
+        <div><label>টাকার পরিমাণ (৳)</label><input type="text" id="cAmt" class="amt-in" inputmode="decimal" autocomplete="off" placeholder="20000+15000"><div class="hint amt-sum" style="margin-top:4px"></div></div>
       </div>
       <label>উৎস</label><input id="cSrc" value="হেড অফিস">
       <label>নোট / ভাউচার নম্বর (ঐচ্ছিক)</label><input id="cNote">
@@ -377,6 +377,25 @@
     return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2,"0")).join("");
   }
 
+  // টাকার ঘরে যোগ করা যাবে, যেমন 20000+15000
+  function parseAmt(v){
+    const parts = String(v).replace(/[,\s]/g, "").split("+");
+    let sum = 0;
+    for (const p of parts){
+      if (!/^(\d+\.?\d*|\.\d+)$/.test(p)) return NaN;
+      sum += parseFloat(p);
+    }
+    return Math.round(sum * 100) / 100;
+  }
+  document.addEventListener("input", ev => {
+    const t = ev.target;
+    if (!t.classList || !t.classList.contains("amt-in")) return;
+    const out = t.nextElementSibling;
+    if (!out) return;
+    const v = parseAmt(t.value);
+    out.textContent = (t.value.indexOf("+") >= 0 && v > 0) ? "= " + taka(v) : "";
+  });
+
   function show(id){
     curView = id;
     VIEWS.forEach(v => $(v).classList.toggle("hidden", v !== id));
@@ -444,7 +463,7 @@
     if (curView === "expView" && ex.form && $("eDesc")){
       const ids = ["eVch","ePaid","eDesc","eAmt"], vals = ids.map(i => $(i) ? $(i).value : ""), f = document.activeElement && document.activeElement.id;
       renderExp();
-      if ($("eDesc")){ ids.forEach((i, n) => { if ($(i)) $(i).value = vals[n]; }); if (f && $(f)) $(f).focus(); }
+      if ($("eDesc")){ ids.forEach((i, n) => { if ($(i)) $(i).value = vals[n]; }); if ($("eAmt")) $("eAmt").dispatchEvent(new Event("input", {bubbles:true})); if (f && $(f)) $(f).focus(); }
     } else rerender();
   }
   function dataChanged(){
@@ -521,7 +540,7 @@
   function openCash(){
     const now = new Date();
     $("cDate").value = now.toISOString().slice(0,10);
-    $("cAmt").value = ""; $("cNote").value = ""; $("cMsg").textContent = "";
+    $("cAmt").value = ""; $("cAmt").dispatchEvent(new Event("input", {bubbles:true})); $("cNote").value = ""; $("cMsg").textContent = "";
     $("cSrc").value = lang === "en" ? "Head Office" : "হেড অফিস";
     selYear = now.getFullYear(); selMonth = now.getMonth();
     render();
@@ -571,14 +590,14 @@
   $("cYear").onchange = e => { selYear = +e.target.value; render(); };
 
   $("cSave").onclick = () => {
-    const date = $("cDate").value, amt = parseFloat($("cAmt").value);
+    const date = $("cDate").value, amt = parseAmt($("cAmt").value);
     const src = $("cSrc").value.trim() || "হেড অফিস", note = $("cNote").value.trim();
     const m = $("cMsg"); m.className = "msg";
     if (!date) return m.textContent = "তারিখ দিন।";
     if (!(amt > 0)) return m.textContent = "সঠিক টাকার পরিমাণ দিন।";
     DBX.add("cash", {id: newId(), date, amount: amt, source: src, note, by: userEmail()});
     selYear = +date.slice(0,4); selMonth = +date.slice(5,7) - 1;
-    $("cAmt").value = ""; $("cNote").value = "";
+    $("cAmt").value = ""; $("cAmt").dispatchEvent(new Event("input", {bubbles:true})); $("cNote").value = "";
     render();
     m.className = "ok"; m.textContent = "ক্যাশ যোগ হয়েছে।";
     setTimeout(() => { if (m.className === "ok") m.textContent = ""; }, 2500);
@@ -669,7 +688,7 @@
         `<div><label>কাকে পেইড (Paid To)</label><input id="ePaid" list="paidList" autocomplete="off"></div></div>` +
         `<p class="hint">একই ভাউচার নম্বর দিলে বিলগুলো এক ভাউচারের নিচে জমা হবে।</p>` +
         `<label>খরচের খাত (তালিকা থেকে বেছে নিন বা নতুন লিখুন)</label><input id="eDesc" list="headList" autocomplete="off">` +
-        `<label>কত টাকা খরচ হয়েছে (৳)</label><input id="eAmt" type="number" min="0" step="0.01" inputmode="decimal">` +
+        `<label>কত টাকা খরচ হয়েছে (৳)</label><input id="eAmt" class="amt-in" type="text" inputmode="decimal" autocomplete="off" placeholder="20000+15000"><div class="hint amt-sum" style="margin-top:4px"></div>` +
         `<button class="wide" id="eSave">খরচ সংরক্ষণ করুন</button><div class="msg" id="eMsg"></div></div>`;
     }
     h += `</div><div class="card"><h3 style="margin-top:0">এই দিনের খরচ</h3>`;
@@ -709,11 +728,11 @@
       $("eVch").addEventListener("change", fillPaid);
       const doSave = () => {
         const vch = $("eVch").value.trim(), paid = $("ePaid").value.trim();
-        const desc = $("eDesc").value.trim(), amt = parseFloat($("eAmt").value), m = $("eMsg");
+        const desc = $("eDesc").value.trim(), amt = parseAmt($("eAmt").value), m = $("eMsg");
         if (!desc) return m.textContent = "খরচের খাত লিখুন বা বেছে নিন।";
         if (!(amt > 0)) return m.textContent = "সঠিক টাকার পরিমাণ দিন।";
         m.textContent = "";
-        $("eDesc").value = ""; $("eAmt").value = ""; ex.lastAuto = paid; $("eDesc").focus();
+        $("eDesc").value = ""; $("eAmt").value = ""; $("eAmt").dispatchEvent(new Event("input", {bubbles:true})); ex.lastAuto = paid; $("eDesc").focus();
         DBX.add("expenses", {id: newId(), date, desc, amount: amt, voucher: vch, paidTo: paid, by: userEmail()});
       };
       $("eSave").onclick = doSave;
@@ -1039,13 +1058,13 @@
     if (kind === "cash"){
       $("edTitle").textContent = "ক্যাশ এন্ট্রি এডিট করুন";
       $("edFields").innerHTML = `<div class="row"><div><label>তারিখ</label><input type="date" id="edDate"></div>` +
-        `<div><label>টাকার পরিমাণ (৳)</label><input type="number" id="edAmt" min="0" step="0.01" inputmode="decimal"></div></div>` +
+        `<div><label>টাকার পরিমাণ (৳)</label><input type="text" id="edAmt" class="amt-in" inputmode="decimal" autocomplete="off" placeholder="20000+15000"><div class="hint amt-sum" style="margin-top:4px"></div></div></div>` +
         `<label>উৎস</label><input id="edSrc"><label>নোট / ভাউচার নম্বর (ঐচ্ছিক)</label><input id="edNote">`;
       $("edDate").value = e.date; $("edAmt").value = e.amount; $("edSrc").value = e.source || ""; $("edNote").value = e.note || "";
     } else {
       $("edTitle").textContent = "খরচ এডিট করুন";
       $("edFields").innerHTML = `<div class="row"><div><label>তারিখ</label><input type="date" id="edDate"></div>` +
-        `<div><label>টাকার পরিমাণ (৳)</label><input type="number" id="edAmt" min="0" step="0.01" inputmode="decimal"></div></div>` +
+        `<div><label>টাকার পরিমাণ (৳)</label><input type="text" id="edAmt" class="amt-in" inputmode="decimal" autocomplete="off" placeholder="20000+15000"><div class="hint amt-sum" style="margin-top:4px"></div></div></div>` +
         `<div class="row"><div><label>ভাউচার নম্বর</label><input id="edVch" autocomplete="off"></div>` +
         `<div><label>কাকে পেইড (Paid To)</label><input id="edPaid" list="paidList" autocomplete="off"></div></div>` +
         `<label>খরচের খাত</label><input id="edDesc" list="headList" autocomplete="off">`;
@@ -1064,7 +1083,7 @@
   $("edSave").onclick = () => {
     if (!edCtx) return;
     const kind = edCtx.kind, e = edCtx.e, m = $("edMsg");
-    const date = $("edDate").value, amt = parseFloat($("edAmt").value);
+    const date = $("edDate").value, amt = parseAmt($("edAmt").value);
     if (!date) return void (m.textContent = "তারিখ দিন।");
     if (!(amt > 0)) return void (m.textContent = "সঠিক টাকার পরিমাণ দিন।");
     let upd;
