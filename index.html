@@ -145,7 +145,7 @@
       <button class="tile" id="goRep"><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
       <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
-    <p class="hint" translate="no">Accounts Intelligence · Version 11 · Online (22-Nov-2026)</p>
+    <p class="hint" translate="no">Accounts Intelligence · Version 12 · Online (22-Nov-2026)</p>
   </section>
 
   <!-- ক্যাশ যোগ -->
@@ -795,7 +795,7 @@
     return {
       kind, left, heads, totalIn, totPrev, totDay, totMonth, balance:r2(totalIn - totMonth),
       monthLabel:`${MON_EN[m]}-${y}`,
-      dateLabel:`${pad(d)}-${MON3[m]}-${yy}`,
+      dateLabel: kind === "day" ? `${pad(d)}-${MON3[m]}-${yy}` : (() => { const t = new Date(); return `${pad(t.getDate())}-${MON3[t.getMonth()]}-${String(t.getFullYear()).slice(2)}`; })(),
       sheet: kind === "day" ? `${pad(d)}-${MON3[m]}-${yy}` : `${MON3[m]}-${y}`
     };
   }
@@ -811,7 +811,7 @@
     return `<div class="stmt" translate="no"><div class="t1">Poly Corr Packaging</div><div class="t2">DAILY CASH &amp; EXPENSES STATEMENT</div>` +
       `<div class="t3">For the month of ${s.monthLabel}</div><div class="dt"><span>Date: ${s.dateLabel}</span></div>` +
       `<table><colgroup><col style="width:29%"><col style="width:10%"><col style="width:28%"><col style="width:12%"><col style="width:10%"><col style="width:12%"></colgroup>` +
-      `<thead><tr class="topsum"><td></td><td>${fmt(s.totalIn)}</td><td></td><td>${fmt(s.totPrev)}</td><td></td><td>${fmt(s.totMonth)}</td></tr>` +
+      `<thead><tr class="topsum"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>` +
       `<tr><th>HEAD OFFICE RECEIVED</th><th>Amount</th><th>HEAD OF EXPENSES</th><th>Previous Monthly Amount</th><th>Amount (Daily)</th><th>Total Amount (Month)</th></tr></thead>` +
       `<tbody>${rows}</tbody>` +
       `<tfoot><tr class="tot"><td>Total</td><td class="n">${fmt(s.totalIn)}</td><td style="text-align:center">TOTAL</td><td class="n">${fmt(s.totPrev)}</td><td class="n">${fmt(s.totDay)}</td><td class="n">${fmt(s.totMonth)}</td></tr>` +
@@ -885,12 +885,6 @@
     num("D" + tot, {formula:`SUM(D${first}:D${last})`, result:s.totPrev}, s.totPrev, bold);
     num("E" + tot, {formula:`SUM(E${first}:E${last})`, result:s.totDay}, s.totDay, bold);
     num("F" + tot, {formula:`SUM(F${first}:F${last})`, result:s.totMonth}, s.totMonth, bold);
-
-    // উপরের ছোট যোগফল (ছবির মতো)
-    const small = {font:{italic:true, size:8, color:{argb:"FF555555"}}, align:{horizontal:"right"}};
-    put("B5", {formula:`B${tot}`, result:s.totalIn}, Object.assign({nf:nf(s.totalIn)}, small));
-    put("D5", {formula:`D${tot}`, result:s.totPrev}, Object.assign({nf:nf(s.totPrev)}, small));
-    put("F5", {formula:`F${tot}`, result:s.totMonth}, Object.assign({nf:nf(s.totMonth)}, small));
 
     // ব্যালেন্স
     put("C" + bal, "Balance =", {font:{bold:true}, align:{horizontal:"right"}});
