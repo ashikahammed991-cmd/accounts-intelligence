@@ -25,8 +25,8 @@
   button.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6);padding:6px 12px}
   button.ghost:hover{background:rgba(255,255,255,.15)}
   button.link{background:none;color:var(--brand);padding:0}
-  button.danger{background:var(--bad);color:#fff;padding:4px 10px}
-  button.danger:hover{background:#b3261e}
+  button.danger{background:none;color:var(--bad);padding:4px 8px}
+  button.danger:hover{background:#fdecea}
   button.wide{width:100%;margin-top:18px}
   .msg{margin-top:12px;font-size:.9rem;color:var(--bad);min-height:1.2em}
   .menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
@@ -34,23 +34,6 @@
   .tile:hover{background:#eef3ff;border-color:var(--brand)}
   .tile b{display:block;font-size:1.05rem;margin-bottom:4px}
   .tile span{font-size:.85rem;color:var(--muted)}
-  .menu{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
-  .menu .tile{color:#fff;border:0;text-align:center;padding:26px 14px;min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.15);transition:transform .12s,filter .12s}
-  .menu .tile:hover{transform:translateY(-2px);filter:brightness(1.08)}
-  .menu .tile b{font-size:1.02rem;margin:0}
-  .menu .tile span{display:none}
-  .menu .tile svg{display:block;width:44px;height:44px;margin-bottom:12px;stroke:#fff;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-  .menu .tile.c1{background:#ad9100}
-  .menu .tile.c2{background:#4a825d}
-  .menu .tile.c3{background:#b17547}
-  .menu .tile.c4{background:#7a7e8b}
-  body.th-c1{background:#f5f0d3} body.th-c2{background:#e2eee6} body.th-c3{background:#f3e5d9} body.th-c4{background:#e6e7ec}
-  .pghead{display:flex;align-items:center;gap:12px;color:#fff;border-radius:12px;padding:14px 20px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.15)}
-  .pghead svg{width:34px;height:34px;stroke:#fff;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
-  .pghead b{font-size:1.2rem}
-  .pghead.c1{background:#ad9100} .pghead.c2{background:#4a825d} .pghead.c3{background:#b17547} .pghead.c4{background:#7a7e8b}
-  button.ghost#logoutBtn{background:#d93025;border-color:#d93025;color:#fff}
-  button.ghost#logoutBtn:hover{background:#b3261e}
   .tile.off{opacity:.55;cursor:not-allowed}
   .tile.off:hover{background:var(--card);border-color:var(--line)}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -115,8 +98,8 @@
   button.lg.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   .status{background:#fff8e1;border:1px solid #f0d58c;color:#7a5b00;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:.9rem}
   .status.bad{background:#fdecea;border-color:#f3b8b3;color:var(--bad)}
-  button.edit{background:var(--ok);color:#fff;padding:4px 10px;margin-right:4px}
-  button.edit:hover{background:#0e8040}
+  button.edit{background:none;color:var(--brand);padding:4px 8px}
+  button.edit:hover{background:#eef3ff}
   button.cancel{background:#fff;color:var(--ink);border:1px solid var(--line)}
   button.cancel:hover{background:#f4f6fb}
   .modal{position:fixed;inset:0;background:rgba(20,26,40,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
@@ -157,12 +140,12 @@
       <div class="langbox">ভাষা: <button class="lg" data-lang="bn" translate="no">বাংলা</button><button class="lg" data-lang="en" translate="no">English</button></div>
     </div>
     <div class="menu">
-      <button class="tile c1" id="goCash"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="13" rx="2.5"/><path d="M2.5 10h19"/><circle cx="17" cy="14.5" r="1.2"/><path d="M7 2.5v4M5 4.5h4"/></svg><b>ক্যাশ যোগ করুন</b><span>হেড অফিস থেকে আনা ক্যাশ ও মাসভিত্তিক রেকর্ড</span></button>
-      <button class="tile c2" id="goExp"><svg viewBox="0 0 24 24"><path d="M5 3h14v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21z"/><path d="M9 9h6M9 13h6"/></svg><b>খরচ</b><span>সাল → মাস → দিন অনুযায়ী খরচের হিসাব ও অবশিষ্ট টাকা</span></button>
-      <button class="tile c3" id="goRep"><svg viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="7" width="3" height="10"/><rect x="17" y="13" width="3" height="4"/></svg><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
-      <button class="tile c4" id="goBackup"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M12 17v4m-2.5-2L12 21.5 14.5 19"/></svg><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
+      <button class="tile" id="goCash"><b>＋ ক্যাশ যোগ করুন</b><span>হেড অফিস থেকে আনা ক্যাশ ও মাসভিত্তিক রেকর্ড</span></button>
+      <button class="tile" id="goExp"><b>− খরচ</b><span>সাল → মাস → দিন অনুযায়ী খরচের হিসাব ও অবশিষ্ট টাকা</span></button>
+      <button class="tile" id="goRep"><b>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
+      <button class="tile" id="goBackup"><b>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
-    <p class="hint" translate="no">Accounts Intelligence · Version 15 · Online (22-Nov-2026)</p>
+    <p class="hint" translate="no">Accounts Intelligence · Version 12 · Online (22-Nov-2026)</p>
   </section>
 
   <!-- ক্যাশ যোগ -->
@@ -413,16 +396,8 @@
     out.textContent = (t.value.indexOf("+") >= 0 && v > 0) ? "= " + taka(v) : "";
   });
 
-  const THEME = {cashView:["c1","goCash"], expView:["c2","goExp"], repView:["c3","goRep"], backupView:["c4","goBackup"]};
-  Object.keys(THEME).forEach(v => {
-    const c = THEME[v][0], t = $(THEME[v][1]), h = document.createElement("div");
-    h.className = "pghead " + c;
-    h.innerHTML = t.querySelector("svg").outerHTML + "<b>" + t.querySelector("b").textContent + "</b>";
-    $(v).insertBefore(h, $(v).firstChild);
-  });
   function show(id){
     curView = id;
-    document.body.className = (THEME[id] ? "th-" + THEME[id][0] : "");
     VIEWS.forEach(v => $(v).classList.toggle("hidden", v !== id));
     const loggedIn = !!currentUser;
     $("who").classList.toggle("hidden", !loggedIn);
