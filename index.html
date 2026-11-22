@@ -147,7 +147,7 @@
       <button class="tile" id="goRep"><b><svg viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="7" width="3" height="10"/><rect x="17" y="13" width="3" height="4"/></svg>রিপোর্ট</b><span>দৈনিক / মাসিক / বার্ষিক ক্যাশ ও খরচের স্টেটমেন্ট (Excel, PDF, প্রিন্ট)</span></button>
       <button class="tile" id="goBackup"><b><svg viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4.2 4.2 0 0 1 0 8.5z"/><path d="M12 11v6M9.5 14.8L12 17.3l2.5-2.5"/></svg>ব্যাকআপ</b><span>ডেটা ডাউনলোড ও পুনরুদ্ধার</span></button>
     </div>
-    <p class="hint" translate="no">Accounts Intelligence · Version 13 · Online (22-Nov-2026)</p>
+    <p class="hint" translate="no">Accounts Intelligence · Version 14 · Online (22-Nov-2026)</p>
   </section>
 
   <!-- ক্যাশ যোগ -->
@@ -1023,7 +1023,8 @@
         MONTHS.map((n, i) => {
           const st = monthStats(rp.y, i), has = monthHasData(rp.y, i);
           return `<button class="m ${has ? "sel" : ""}" data-m="${i}"><strong>${n}</strong><small>খরচ ${taka(st.exp)}</small><small>অবশিষ্ট ${taka(st.bal)}</small></button>`;
-        }).join("") + `</div></div>`;
+        }).join("") + `</div></div>` +
+        stmtsFor("year").map(st => preview(st)).join("");
     } else if (rp.d === null){
       const n = lastDay(rp.y, rp.m), pre = `${rp.y}-${pad(rp.m+1)}-`;
       const cl = cashList(), el = expList();
